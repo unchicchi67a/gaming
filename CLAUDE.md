@@ -11,6 +11,13 @@
   - `index.html` を直接ブラウザで開いて動作させる（`file://` でも動くよう、ES Modules は使わず通常の `<script>` で読み込む）
   - ルールは `js/engine.js`、CPU は `js/ai.js`。どちらもブラウザと Node.js の両方から読み込める形式にしている
   - テスト：`node --test reversi/tests/reversi.test.js`
+- `three-little-pigs/`：3歳向けの絵本ゲーム「3びきのこぶた」（ビルド不要の HTML / CSS / JavaScript）
+  - リバーシと同じく `index.html` を直接開いて動かす。ES Modules は使わず通常の `<script>` で読み込む
+  - 物語の進行は `js/story.js`、息の「ふーっ」判定は `js/breath.js`。どちらも画面に触れない純粋なロジックで、ブラウザと Node.js の両方から読み込める
+  - 絵は `js/art.js` で SVG 文字列として描く（画像ファイルなし）。表情は CSS クラス（`.wolf--hot` など）で切り替える
+  - マイクは HTTPS / localhost でのみ使える。タッチだけでも最後まで遊べることを保つこと
+  - `?scene=<場面名>` で途中の場面から始められる（動作確認用）
+  - テスト：`node --test three-little-pigs/tests/pigs.test.js`
 
 ## ペルソナ
 
