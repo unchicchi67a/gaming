@@ -13,7 +13,9 @@
 
 ## 遊び方
 
-各ゲームの `index.html` をブラウザで開くと遊べます。
+GitHub Pages で公開しています。ブラウザで https://unchicchi67a.github.io/gaming/ を開くと、遊ぶゲームを選べます。
+
+手元で遊ぶ場合は、各ゲームの `index.html` をブラウザで開くと遊べます。
 
 ローカルサーバーで動かす場合は、リポジトリのルートで次のコマンドを実行し、ブラウザで `http://localhost:8000/<フォルダ名>/` を開きます。
 
@@ -29,6 +31,7 @@ GitHub Codespaces で動かしている場合は、「ポート」タブから 8
 gaming/
 ├── README.md        このファイル（ゲーム一覧）
 ├── CLAUDE.md        Claude Code 向けの作業ルール
+├── index.html       ゲームを選ぶトップページ（GitHub Pages の入口）
 ├── reversi/         リバーシ
 └── three-little-pigs/ 3びきのこぶた
 ```
@@ -38,3 +41,4 @@ gaming/
 1. ゲームごとに新しいフォルダを作り、`index.html` をそのフォルダに置く
 2. フォルダの中に、遊び方・機能・テストの実行方法を書いた `README.md` を置く
 3. この README の「ゲーム一覧」と「フォルダ構成」に追加する
+4. ルートの `index.html` にゲームへのリンクを追加する

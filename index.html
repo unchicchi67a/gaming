@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ゲームであそぼう</title>
+  <style>
+    :root {
+      --sky: #6ccbf4;
+      --sky-dot: rgba(255, 255, 255, 0.32);
+      --ink: #24315e;
+      --ink-soft: #5b6894;
+      --card: #ffffff;
+      --card-ledge: #c3d4e6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "Yu Gothic", system-ui, sans-serif;
+      color: var(--ink);
+      background-color: var(--sky);
+      background-image: radial-gradient(var(--sky-dot) 18%, transparent 19%);
+      background-size: 36px 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+    }
+    h1 {
+      margin: 0 0 24px;
+      font-size: clamp(1.6rem, 6vw, 2.4rem);
+      color: #fff;
+      text-shadow: 0 3px 0 rgba(36, 49, 94, 0.35);
+    }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      max-width: 480px;
+      display: grid;
+      gap: 16px;
+    }
+    a {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      border-radius: 20px;
+      background: var(--card);
+      box-shadow: 0 6px 0 var(--card-ledge);
+      color: inherit;
+      text-decoration: none;
+      transition: transform 0.08s, box-shadow 0.08s;
+    }
+    a:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--card-ledge); }
+    .icon { font-size: 2.6rem; line-height: 1; }
+    .name { font-size: 1.3rem; font-weight: bold; }
+    .desc { display: block; margin-top: 4px; font-size: 0.9rem; color: var(--ink-soft); }
+  </style>
+</head>
+<body>
+  <h1>ゲームであそぼう</h1>
+  <ul>
+    <li>
+      <a href="reversi/">
+        <span class="icon" aria-hidden="true">⚫</span>
+        <span>
+          <span class="name">リバーシ</span>
+          <span class="desc">CPU対戦（レベル1〜10）と2人対戦</span>
+        </span>
+      </a>
+    </li>
+    <li>
+      <a href="three-little-pigs/">
+        <span class="icon" aria-hidden="true">🐷</span>
+        <span>
+          <span class="name">3びきのこぶた</span>
+          <span class="desc">3歳くらいの子ども向けの絵本ゲーム</span>
+        </span>
+      </a>
+    </li>
+  </ul>
+</body>
+</html>
