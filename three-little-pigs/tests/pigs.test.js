@@ -206,7 +206,7 @@ test('ふーっ：いったん静かになってから、もう一度ふくと 2
 
 test('ふーっ：うるさい部屋では雑音の大きさを学習し、その程度の音では判定しない', () => {
   const det = Breath.createBreathDetector();
-  // 雑音 0.05 がずっと続く部屋（minLevel 0.06 に近い）
+  // 雑音 0.05 がずっと続く部屋（minLevel より大きい）
   const { hits } = feedMany(det, 0.05, 600, 0);
   assert.deepEqual(hits, []);
   assert.ok(det.floor > 0.03, `floor=${det.floor}`);
@@ -219,12 +219,37 @@ test('ふーっ：うるさい部屋では雑音の大きさを学習し、そ�
 test('ふーっ：strength は 0〜1 の範囲で、音が大きいほど大きい', () => {
   const det = Breath.createBreathDetector({ holdMs: 10000 });
   const a = det.feed(0.0, 0).strength;
-  const b = det.feed(0.04, 16).strength;
+  const b = det.feed(0.02, 16).strength;
   const c = det.feed(0.9, 32).strength;
   assert.equal(a, 0);
   assert.ok(b > 0 && b < 1);
   assert.equal(c, 1);
   assert.equal(det.feed(NaN, 48).strength, 0);
+});
+
+test('ふーっ：スマートフォンのマイクの小さめの息（0.05 前後）でも判定する', () => {
+  const det = Breath.createBreathDetector();
+  let t = feedMany(det, 0.008, 120, 0).time; // 静かな部屋で約 2 秒
+  const { hits } = feedMany(det, 0.05, 30, t); // 約 0.5 秒ふく
+  assert.equal(hits.length, 1);
+});
+
+test('ふーっ：雑音を学習しても、判定に必要な音量には上限がある', () => {
+  const det = Breath.createBreathDetector();
+  feedMany(det, 0.2, 600, 0); // ずっとうるさい（判定はされても、雑音の学習は上限で止まる）
+  assert.ok(det.floor <= Breath.DEFAULTS.maxFloor + 1e-9, `floor=${det.floor}`);
+  assert.ok(det.trigger <= Breath.DEFAULTS.maxFloor * Breath.DEFAULTS.ratio + 1e-9, `trigger=${det.trigger}`);
+});
+
+test('ふーっ：マイクを開いた直後は判定せず、雑音を急いで学習する', () => {
+  const det = Breath.createBreathDetector();
+  // 開いたとたんにテレビの音（0.035）が入っても判定しない
+  let r = feedMany(det, 0.035, 120, 0);
+  assert.deepEqual(r.hits, []);
+  // しばらく音量が届かず（マイクを閉じて）、開き直した直後の大きな音も、最初の warmupMs は判定しない
+  det.reset();
+  r = feedMany(det, 0.5, 10, r.time + 5000); // 約 160ms
+  assert.deepEqual(r.hits, []);
 });
 
 test('rms は波形の音量を返す', () => {

@@ -973,8 +973,24 @@
   });
 
   // マイクの音量は、雑音を学習するためにいつも判定器へ渡す
+  // 動作確認用：?micdebug を付けると、マイクの音量と判定の基準を画面に出す（実機で感度を調べるため）
+  const micDebug = new URLSearchParams(location.search).has('micdebug') ? document.createElement('pre') : null;
+  let micPeak = 0;
+  let micPeakAt = 0;
+  if (micDebug) {
+    micDebug.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99;margin:0;padding:6px 10px;'
+      + 'background:rgba(0,0,0,.7);color:#fff;font:12px/1.5 monospace;border-radius:8px;pointer-events:none';
+    micDebug.textContent = 'mic: closed';
+    document.body.appendChild(micDebug);
+  }
+
   Mic.onLevel((level, time) => {
     const r = detector.feed(level, time);
+    if (micDebug) {
+      if (level > micPeak || time - micPeakAt > 2000) { micPeak = level; micPeakAt = time; }
+      micDebug.textContent = `level ${level.toFixed(3)}  peak(2s) ${micPeak.toFixed(3)}\n`
+        + `floor ${detector.floor.toFixed(3)}  trigger ${detector.trigger.toFixed(3)}${r.blow ? '  BLOW!' : ''}`;
+    }
     if (!interactive || busy || Story.currentScene(state).kind !== 'blow') return;
     ui.meter.style.height = Math.round(r.strength * 100) + '%';
     if (A.wolf) A.wolf.style.setProperty('--puff', (r.strength * 0.9).toFixed(2));

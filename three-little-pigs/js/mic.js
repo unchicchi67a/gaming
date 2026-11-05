@@ -29,11 +29,17 @@
   function loop() {
     rafId = root.requestAnimationFrame(loop);
     if (!analyser) return;
-    analyser.getByteTimeDomainData(buffer);
     let sum = 0;
-    for (let i = 0; i < buffer.length; i++) {
-      const v = (buffer[i] - 128) / 128;
-      sum += v * v;
+    if (buffer instanceof Float32Array) {
+      // 小さい音も細かく測れるよう、使えるときは小数の波形を使う
+      analyser.getFloatTimeDomainData(buffer);
+      for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+    } else {
+      analyser.getByteTimeDomainData(buffer);
+      for (let i = 0; i < buffer.length; i++) {
+        const v = (buffer[i] - 128) / 128;
+        sum += v * v;
+      }
     }
     const level = Math.sqrt(sum / buffer.length);
     if (listener) listener(level, root.performance.now());
@@ -47,8 +53,9 @@
     // AudioContext はユーザー操作の中で作る必要があるため、getUserMedia より先に作る
     const Ctor = root.AudioContext || root.webkitAudioContext;
     try {
-      ctx = ctx || new Ctor();
-      if (ctx.state === 'suspended') ctx.resume();
+      if (!ctx || ctx.state === 'closed') ctx = new Ctor();
+      // iOS では、ほかの音やマイクの切りかえで 'interrupted' になることがある
+      if (ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume();
     } catch (e) {
       return Promise.resolve(false);
     }
@@ -66,7 +73,9 @@
       analyser = ctx.createAnalyser();
       analyser.fftSize = 1024;
       analyser.smoothingTimeConstant = 0;
-      buffer = new Uint8Array(analyser.fftSize);
+      buffer = typeof analyser.getFloatTimeDomainData === 'function'
+        ? new Float32Array(analyser.fftSize)
+        : new Uint8Array(analyser.fftSize);
       source.connect(analyser);
       cancelAnimationFrame(rafId);
       loop();
