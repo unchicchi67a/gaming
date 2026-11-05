@@ -76,6 +76,12 @@
 
   let state = Story.createState();
   let busy = false;
+  /**
+   * マイクで「ふーっ」をするか（設定が ON で、マイクの許可が取れたとき true）。
+   * マイクを開くと音の出力が通話用に切りかわって声がガサガサになるため、
+   * 実際にマイクを開くのは「ふーっ」を待つあいだだけにする（openMicForBlow / closeMic）。
+   */
+  let micOn = false;
   let interactive = false;
   let runId = 0;
   let hintTimer = 0;
@@ -371,7 +377,8 @@
   function showPrompt(firstTime) {
     const scene = Story.currentScene(state);
     const kind = scene.kind;
-    const micMode = kind === 'blow' && Mic.active;
+    const micMode = kind === 'blow' && micOn;
+    if (micMode) Mic.start();
     // 「タッチしてね」などの最後のせりふは、操作するまで残しておく
     clearTimeout(bubbleTimer);
     const total = Story.required(scene);
@@ -388,6 +395,8 @@
 
   function hidePrompt() {
     interactive = false;
+    // 演出（せりふ・効果音）のあいだはマイクを閉じ、音を通常の音質で鳴らす
+    Mic.stop();
     ui.prompt.hidden = true;
     hideHint();
   }
@@ -528,7 +537,10 @@
     Voice.unlock();
     applyAudioSettings();
     if (settings.mic && Mic.supported()) {
+      // はじめる操作の中で許可だけ取っておき、マイクはすぐ閉じる（使うのは「ふーっ」を待つときだけ）
       Mic.start().then((ok) => {
+        micOn = ok;
+        if (!interactive || Story.currentScene(state).kind !== 'blow') Mic.stop();
         if (!ok) {
           toast('マイクが つかえないので、タッチで あそんでね');
         }
@@ -697,7 +709,7 @@
     await d.say(many ? 'pigs' : 'pig1', 'いやだよー！');
     await d.say('wolf', 'それなら、こんな おうち ふきとばしてやる！');
     if (type === 'straw') {
-      await d.say('narrator', Mic.active
+      await d.say('narrator', micOn
         ? 'おおかみに なって、マイクに ふーっ！ って いきを ふきかけてね。タッチでも いいよ。'
         : 'おおかみを タッチして、ふーっ！ って ふきとばそう！');
     } else {
@@ -982,10 +994,10 @@
     ui.optMic.disabled = !!reason;
     ui.optMic.setAttribute('aria-pressed', String(!reason && settings.mic));
     ui.micNote.textContent = reason || (settings.mic ? 'はじめると、マイクの使用許可を聞かれます。' : '');
-    ui.btnMic.classList.toggle('on', Mic.active);
-    ui.btnMic.classList.toggle('off', !Mic.active);
+    ui.btnMic.classList.toggle('on', micOn);
+    ui.btnMic.classList.toggle('off', !micOn);
     ui.btnMic.classList.toggle('unavailable', !!reason);
-    ui.btnMic.setAttribute('aria-pressed', String(Mic.active));
+    ui.btnMic.setAttribute('aria-pressed', String(micOn));
     if (interactive) showPrompt(false);
   }
 
@@ -1028,12 +1040,16 @@
       toast(reason);
       return;
     }
-    if (Mic.active) {
+    if (micOn) {
       Mic.stop();
+      micOn = false;
       settings.mic = false;
     } else {
       const ok = await Mic.start();
+      micOn = ok;
       settings.mic = ok;
+      // 「ふーっ」を待っているとき以外は、許可だけ取ってマイクは閉じる
+      if (!interactive || Story.currentScene(state).kind !== 'blow') Mic.stop();
       if (!ok) toast('マイクが つかえないので、タッチで あそんでね');
     }
     saveSettings();

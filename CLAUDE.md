@@ -17,6 +17,7 @@
   - 物語の進行は `js/story.js`、息の「ふーっ」判定は `js/breath.js`。どちらも画面に触れない純粋なロジックで、ブラウザと Node.js の両方から読み込める
   - 絵は `js/art.js` で SVG 文字列として描く（画像ファイルなし）。表情は CSS クラス（`.wolf--hot` など）で切り替える
   - マイクは HTTPS / localhost でのみ使える。タッチだけでも最後まで遊べることを保つこと
+  - マイクは「ふーっ」を待つあいだ（`showPrompt` の blow 場面）だけ開き、`hidePrompt` で閉じる。スマホはマイクを開いているあいだ出力が通話用になり、声がガサガサになるため。マイクを開いたまませりふを鳴らさないこと
   - `?scene=<場面名>` で途中の場面から始められる（動作確認用）
   - テスト：`node --test three-little-pigs/tests/pigs.test.js`
 - `omiseyasan/`：3歳向けの「おみせやさんごっこ」（ビルド不要の HTML / CSS / JavaScript）

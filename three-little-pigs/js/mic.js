@@ -4,6 +4,10 @@
  * 息の「ふーっ」は雑音として消されやすいため、ブラウザのノイズ抑制・エコー除去・
  * 自動音量調整はすべて切ってマイクを開く。
  * マイクは HTTPS か localhost（ブラウザによっては file:// も）でしか使えない。
+ *
+ * スマートフォンでは、マイクを開いているあいだ音の出力が通話用に切りかわり、
+ * 読み上げや効果音の音質が落ちる（ガサガサした声になる）。
+ * そのため main.js は、「ふーっ」を待つあいだだけ start() し、それ以外は stop() する。
  */
 (function (root) {
   'use strict';
@@ -15,6 +19,7 @@
   let rafId = 0;
   let listener = null;
   let starting = null;
+  let generation = 0; // stop() のたびに増やす。開いている途中で stop() されたら、開いたマイクをすぐ閉じる
 
   function supported() {
     return !!(root.navigator && navigator.mediaDevices && navigator.mediaDevices.getUserMedia &&
@@ -47,9 +52,15 @@
     } catch (e) {
       return Promise.resolve(false);
     }
+    const gen = generation;
     starting = navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     }).then((s) => {
+      if (gen !== generation) {
+        // 許可は取れたが、もう要らなくなった
+        s.getTracks().forEach((t) => t.stop());
+        return true;
+      }
       stream = s;
       const source = ctx.createMediaStreamSource(s);
       analyser = ctx.createAnalyser();
@@ -67,6 +78,7 @@
   }
 
   function stop() {
+    generation++;
     cancelAnimationFrame(rafId);
     rafId = 0;
     if (stream) stream.getTracks().forEach((t) => t.stop());
