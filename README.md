@@ -10,6 +10,7 @@
 | 爆裂リバーシ | [`bakuretsu-reversi/`](bakuretsu-reversi/) | 置くとまわりの8マスが爆風でひっくり返るリバーシ。CPU対戦（レベル1〜10）と2人対戦に対応 |
 | 3びきのこぶた | [`three-little-pigs/`](three-little-pigs/) | 3歳くらいの子ども向けの絵本ゲーム。タッチや息の「ふーっ」で昔話を進める |
 | おみせやさんごっこ | [`omiseyasan/`](omiseyasan/) | 3歳くらいの子ども向けのお店屋さんごっこ。お客さんが言った品物を棚からタッチしてわたす（やおやさん・くだものやさん・パンやさん） |
+| おつかい できるかな？ | [`otsukai/`](otsukai/) | 3歳くらいの子ども向けのおつかいゲーム。お母さんのメモを見て、町のお店で品物を買ってくる（レベル1〜4） |
 
 各ゲームの遊び方や機能は、それぞれのフォルダの README を見てください。
 
@@ -38,6 +39,7 @@ gaming/
 ├── bakuretsu-reversi/ 爆裂リバーシ
 ├── three-little-pigs/ 3びきのこぶた
 ├── omiseyasan/      おみせやさんごっこ
+├── otsukai/         おつかい できるかな？（品物の絵は omiseyasan/ のものを使う）
 └── tools/voicevox/  VOICEVOX でせりふの音声ファイルをつくるスクリプト
 ```
 
