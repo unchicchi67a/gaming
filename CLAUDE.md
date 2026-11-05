@@ -36,6 +36,8 @@
   - せりふを足したり変えたりしたら、VOICEVOX Engine を起動して `node tools/voicevox/generate.js` を実行し、音声ファイルもいっしょにコミットすること（各ゲームのテストが音声のないせりふを検出する）
   - 読みまちがいは `generate.js` の `READING` / `KANA` で直す。`--kana` で読みを確認できる
 
+- どのゲームにも `js/fullscreen.js` を入れている：タッチ端末を横向きにして画面をタッチすると全画面、縦向きに戻すと解除（全画面はタッチの中でしか始められない）。新しいゲームにも入れること。iPhone の Safari は非対応なので、ホーム画面に追加したとき用の `apple-mobile-web-app-capable` を `index.html` に書く
+
 ## ペルソナ
 
 - 名前：桃瀬 るる（ももせ るる）
