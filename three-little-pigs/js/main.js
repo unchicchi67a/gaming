@@ -33,9 +33,6 @@
   };
   const INDOOR_PIGS = [[3, 640], [2, 705], [1, 770]];
 
-  const NAMES = {
-    narrator: '', wolf: 'おおかみ', pig1: '1ぴきめ', pig2: '2ひきめ', pig3: '3びきめ', pigs: 'こぶたたち',
-  };
 
   const $ = (id) => document.getElementById(id);
   const svg = $('svg');
@@ -46,17 +43,17 @@
   };
   const ui = {
     title: $('title'), end: $('end'), confirm: $('confirm'), topbar: $('topbar'),
-    prompt: $('prompt'), promptText: $('prompt-text'), dots: $('dots'), meter: $('meter-fill'),
-    caption: $('caption'), who: $('who'), line: $('line'),
+    prompt: $('prompt'), dots: $('dots'), meter: $('meter-fill'),
+    caption: $('caption'), line: $('line'), bubble: $('bubble'), bubbleLine: $('bubble-line'),
     fade: $('fade'), toast: $('toast'), micNote: $('mic-note'),
-    optMic: $('opt-mic'), optVoice: $('opt-voice'), optSound: $('opt-sound'),
+    optMic: $('opt-mic'), optVoice: $('opt-voice'), optText: $('opt-text'), optSound: $('opt-sound'),
     btnMic: $('btn-mic'), btnSound: $('btn-sound'),
   };
 
   // ------------------------------------------------------------ 設定
 
   const SETTINGS_KEY = 'three-little-pigs-settings';
-  const settings = Object.assign({ mic: false, voice: true, sound: true, muted: false, voiceName: '' }, loadSettings());
+  const settings = Object.assign({ mic: false, voice: true, text: false, sound: true, muted: false, voiceName: '' }, loadSettings());
 
   function loadSettings() {
     try {
@@ -82,6 +79,9 @@
   let interactive = false;
   let runId = 0;
   let hintTimer = 0;
+  let bubbleTimer = 0;
+  /** 吹き出しを出しているキャラクター（画面の大きさが変わったら付け直す）。 */
+  let bubbleWho = null;
   let toastTimer = 0;
   /** いまの場面のキャラクターや小道具。 */
   let A = {};
@@ -105,17 +105,21 @@
       async wait(ms) { await sleep(ms); chk(); },
       async say(who, text) {
         chk();
-        showCaption(who, text);
+        if (who === 'narrator') showCaption(text);
+        else showBubble(who, text);
         await Voice.say(text, who);
         chk();
         await sleep(220);
         chk();
+        // せりふの吹き出しは、キャラクターが動き出す前に消す（操作を待つときは showPrompt で残す）
+        if (who !== 'narrator') scheduleHideBubble(700);
       },
       async all(list) { await Promise.all(list); chk(); },
       async run(p) { await p; chk(); },
     };
     busy = true;
     hidePrompt();
+    hideBubble();
     return Promise.resolve()
       .then(() => fn(d))
       .catch((e) => { if (e !== CANCEL) console.error(e); })
@@ -136,6 +140,7 @@
     // 縦に余るとき（縦長の画面）は、空を多めに見せて地面を画面の下寄りにする
     const y0 = ZONE.y - (vh - ZONE.h) * 0.68;
     svg.setAttribute('viewBox', `${x0.toFixed(1)} ${y0.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}`);
+    if (bubbleWho) placeBubble(bubbleWho);
   }
 
   function toWorld(clientX, clientY) {
@@ -286,9 +291,13 @@
 
   // ------------------------------------------------------------ ヒント・語り
 
-  function showCaption(who, text) {
-    ui.who.textContent = NAMES[who] || '';
-    ui.who.className = 'who ' + who;
+  /** 語り（地の文）。設定の「もじ」が OFF のときは読み上げだけにする。 */
+  function showCaption(text) {
+    hideBubble();
+    if (!settings.text) {
+      hideCaption();
+      return;
+    }
     ui.line.textContent = text;
     ui.caption.hidden = false;
     ui.caption.classList.remove('speak');
@@ -300,21 +309,81 @@
     ui.caption.hidden = true;
   }
 
+  /** 話しているキャラクター（いなければ家）の SVG 要素を返す。 */
+  function speakers(who) {
+    const visible = (g) => g && g.isConnected && g.style.opacity !== '0';
+    let list = who === 'pigs' ? pigs() : [A[who]];
+    list = list.filter(visible);
+    if (!list.length && A.house) list = [A.house];
+    return list;
+  }
+
+  function showBubble(who, text) {
+    hideCaption();
+    clearTimeout(bubbleTimer);
+    ui.bubbleLine.textContent = text;
+    ui.bubble.className = 'bubble ' + who;
+    ui.bubble.hidden = false;
+    bubbleWho = who;
+    placeBubble(who);
+  }
+
+  /** 吹き出しをキャラクターの頭の上に置く。上に入らないときは画面の中に収める。 */
+  function placeBubble(who) {
+    const list = speakers(who);
+    if (!list.length) {
+      ui.bubble.hidden = true;
+      return;
+    }
+    const app = ui.bubble.offsetParent || document.body;
+    const box = app.getBoundingClientRect();
+    let left = Infinity, right = -Infinity, top = Infinity;
+    for (const g of list) {
+      const r = g.getBoundingClientRect();
+      left = Math.min(left, r.left);
+      right = Math.max(right, r.right);
+      top = Math.min(top, r.top);
+    }
+    const cx = (left + right) / 2 - box.left;
+    const w = ui.bubble.offsetWidth;
+    const h = ui.bubble.offsetHeight;
+    const margin = 10;
+    const x = Math.max(margin, Math.min(box.width - w - margin, cx - w / 2));
+    const y = Math.max(64, top - box.top - h - 18);
+    ui.bubble.style.left = x + 'px';
+    ui.bubble.style.top = y + 'px';
+    // しっぽは話している人の真上を指す
+    ui.bubble.style.setProperty('--tail', Math.max(24, Math.min(w - 24, cx - x)) + 'px');
+  }
+
+  function hideBubble() {
+    clearTimeout(bubbleTimer);
+    ui.bubble.hidden = true;
+    bubbleWho = null;
+  }
+
+  function scheduleHideBubble(ms) {
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(hideBubble, ms);
+  }
+
+  /** 目印（あと何回か・マイクの音量）を出して、操作を待つ。 */
   function showPrompt(firstTime) {
     const scene = Story.currentScene(state);
     const kind = scene.kind;
     const micMode = kind === 'blow' && Mic.active;
-    ui.prompt.className = 'prompt ' + (micMode ? 'mic' : 'tap');
-    ui.promptText.textContent = kind === 'blow' ? 'ふーっ！' : 'タッチ！';
+    // 「タッチしてね」などの最後のせりふは、操作するまで残しておく
+    clearTimeout(bubbleTimer);
     const total = Story.required(scene);
     let dots = '';
     for (let i = 0; i < total; i++) dots += `<i class="${i < state.count ? 'on' : ''}"></i>`;
     ui.dots.innerHTML = total > 1 ? dots : '';
+    ui.prompt.className = 'prompt glass' + (micMode ? ' mic' : '');
     ui.meter.style.height = '0%';
-    ui.prompt.hidden = false;
+    ui.prompt.hidden = !micMode && total <= 1;
     interactive = true;
     detector.reset();
-    scheduleHint(firstTime ? 500 : 5000);
+    scheduleHint(firstTime ? 400 : 5000);
   }
 
   function hidePrompt() {
@@ -323,27 +392,31 @@
     hideHint();
   }
 
+  /** さわってほしいもの（わらの山・オオカミ・水さし）。 */
   function hintTarget() {
     const kind = Story.currentScene(state).kind;
-    if (kind === 'build') return { x: PILE_X + 10, y: G - 70 };
-    if (kind === 'blow' && A.wolf) return { x: A.wolf._pos.x + 20, y: G - 110 };
-    if (kind === 'fill' && A.pitcher) return { x: A.pitcher._pos.x + 10, y: A.pitcher._pos.y - 30 };
+    if (kind === 'build' && A.pile) return { g: A.pile, x: PILE_X, y: G - 45, r: 120 };
+    if (kind === 'blow' && A.wolf) return { g: A.wolf, x: A.wolf._pos.x, y: G - 100, r: 125 };
+    if (kind === 'fill' && A.pitcher) return { g: A.pitcher, x: A.pitcher._pos.x + 20, y: A.pitcher._pos.y - 40, r: 90 };
     return null;
   }
 
+  /** しばらく操作がないと、さわってほしいものを光らせて、ぴょこぴょこ動かす。 */
   function scheduleHint(delay) {
     clearTimeout(hintTimer);
     hintTimer = setTimeout(() => {
-      const p = interactive && !busy ? hintTarget() : null;
-      if (!p) return;
+      const t = interactive && !busy ? hintTarget() : null;
+      if (!t) return;
       layer.hint.innerHTML = '';
-      el(layer.hint, '', Art.hand(), p.x, p.y, 1.1);
+      el(layer.hint, '', Art.beckon(t.r), t.x, t.y, 1);
+      t.g.classList.add('beckon');
     }, delay);
   }
 
   function hideHint() {
     clearTimeout(hintTimer);
     layer.hint.innerHTML = '';
+    for (const g of [A.pile, A.wolf, A.pitcher]) if (g) g.classList.remove('beckon');
   }
 
   function toast(text) {
@@ -415,8 +488,8 @@
   /** オオカミの口から家に向かって風を吹かせる。 */
   function gust() {
     const w = A.wolf;
-    const x = w._pos.x + 78 * w._pos.s;
-    const y = w._pos.y - 116 * w._pos.s;
+    const x = w._pos.x + 88 * w._pos.s;
+    const y = w._pos.y - 128 * w._pos.s;
     const g = el(layer.fx, '', Art.wind(), x, y, 1);
     const gusts = g.querySelectorAll('.gust');
     const runs = Array.from(gusts).map((p, i) => tween(p, [
@@ -434,6 +507,7 @@
     busy = false;
     hidePrompt();
     hideCaption();
+    hideBubble();
     state = Story.createState();
     ui.topbar.hidden = true;
     ui.end.hidden = true;
@@ -495,6 +569,7 @@
 
   async function transition(d, render) {
     await d.run(tween(ui.fade, [{ opacity: 0 }, { opacity: 1 }], { duration: 320 }));
+    hideBubble();
     render();
     await d.run(tween(ui.fade, [{ opacity: 1 }, { opacity: 0 }], { duration: 420 }));
   }
@@ -525,7 +600,7 @@
     const arrivals = [];
     await transition(d, () => {
       renderOutdoor(type, 0);
-      A.pile = el(layer.props, 'actor pile', Art.pile(type, scene.pieces), PILE_X, G, 1);
+      A.pile = el(layer.props, 'actor pile', `<g class="a-body">${Art.pile(type, scene.pieces)}</g>`, PILE_X, G, 1);
       cfg.pigs.forEach(([n, x]) => {
         if (n === cfg.builder) {
           addPig(n, x);
@@ -837,6 +912,7 @@
     Sound.fanfare();
     confetti(50);
     hideCaption();
+    hideBubble();
     ui.end.hidden = false;
   }
 
@@ -915,6 +991,7 @@
 
   function updateSoundUI() {
     ui.optVoice.setAttribute('aria-pressed', String(settings.voice));
+    ui.optText.setAttribute('aria-pressed', String(settings.text));
     ui.optSound.setAttribute('aria-pressed', String(settings.sound));
     ui.btnSound.classList.toggle('off', settings.muted);
     ui.btnSound.setAttribute('aria-pressed', String(!settings.muted));
@@ -931,6 +1008,11 @@
     applyAudioSettings();
     updateSoundUI();
     updateVoiceUI();
+  });
+  ui.optText.addEventListener('click', () => {
+    settings.text = !settings.text;
+    saveSettings();
+    updateSoundUI();
   });
   ui.optSound.addEventListener('click', () => {
     settings.sound = !settings.sound;
@@ -1021,10 +1103,10 @@
   updateMicUI();
   showTitle();
 
-  // 日本語の読み上げ音声がない端末では、そのことを伝える
+  // 日本語の読み上げ音声がない端末では、語りを文字で出すよう案内する
   setTimeout(() => {
     if (!Voice.available && settings.voice) {
-      ui.optVoice.title = 'この端末には日本語の読み上げ音声がないため、文字だけで表示します。';
+      ui.optVoice.title = 'この端末には日本語の読み上げ音声がありません。お話の文章を見るには「もじ」を ON にしてください。';
     }
   }, 1500);
 })();

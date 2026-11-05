@@ -73,6 +73,7 @@ ${rad('g-pot', [[0, '#6a6f7c'], [0.6, '#3b3e48'], [1, '#24262d']], 0.35, 0.3, 0.
 ${rad('g-water', [[0, '#c4ecff'], [0.7, '#6ec0ea'], [1, '#3d93c9']], 0.45, 0.4, 0.6)}
 ${rad('g-flame', [[0, '#fff3b0'], [0.45, '#ffc14d'], [1, '#f2703a']], 0.5, 0.85, 0.8)}
 ${lin('g-pitcher', [[0, '#d6eef8'], [1, '#8fc3dd']], 1, 0)}
+${rad('g-beckon', [[0, '#fff8d2', 0.75], [0.55, '#fff3b8', 0.35], [1, '#fff3b8', 0]])}
 ${lin('g-heart', [[0, '#ff9fae'], [1, '#e8667e']])}
 ${lin('g-log', [[0, '#8f5d36'], [0.3, '#c78f5c'], [0.55, '#b87c4b'], [1, '#7a4c2b']])}
 ${lin('g-log2', [[0, '#9a6640'], [0.3, '#d29a66'], [0.55, '#c08654'], [1, '#845432']])}
@@ -108,192 +109,219 @@ ${lin('g-shorts', [[0, '#87694f'], [1, '#5e4836']])}
 
   // ---------------------------------------------------------------- こぶた
   //
-  // 光は右上（太陽の方向）から当たる。影は左下側に、ハイライトは右上側に入れる。
-  // 線は色えんぴつのような、肌より少し濃い色のやわらかい線にする。
+  // 頭を大きく、体はまるく。光は右上（太陽の方向）から当たる。
+  // 色は塗りを重ねてから、最後に輪郭線を 1 本だけ上から引く（線がとぎれず、やわらかく見える）。
 
-  const PIG_HEAD = 'M0 -154 C25 -154 43 -138 44 -115 C45 -95 31 -78 0 -77 C-31 -78 -45 -95 -44 -115 C-43 -138 -25 -154 0 -154 Z';
-  const PIG_BODY = 'M-25 -86 C-40 -78 -47 -56 -43 -36 C-39 -18 -22 -12 0 -12 C22 -12 39 -18 43 -36 C47 -56 40 -78 25 -86 Z';
-  const PIG_LINE = 'stroke="#a8605f" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"';
+  const PIG_HEAD = 'M0 -168 C31 -168 53 -149 53 -123 C53 -97 31 -80 0 -80 C-31 -80 -53 -97 -53 -123 C-53 -149 -31 -168 0 -168 Z';
+  const PIG_BODY = 'M0 -98 C27 -98 45 -78 47 -54 C49 -28 33 -12 0 -12 C-33 -12 -49 -28 -47 -54 C-45 -78 -27 -98 0 -98 Z';
+  const PIG_LINE = 'stroke="#a25a5c" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"';
 
   /** こぶたごとの小物（見分けやすくするため）。 */
   function pigAccessory(n) {
     if (n === 1) {
       // 耳に小さな花
-      return `<g transform="translate(-42 -146) rotate(-15)">
-        ${[0, 72, 144, 216, 288].map((a) => `<ellipse cx="0" cy="-6" rx="4" ry="6" fill="#fff8ee" stroke="#e3c9a8" stroke-width="1" transform="rotate(${a})"/>`).join('')}
-        <circle r="3.6" fill="#f2c14e" stroke="#c99a2e" stroke-width="1"/>
+      return `<g transform="translate(-40 -160) rotate(-15)">
+        ${[0, 72, 144, 216, 288].map((a) => `<ellipse cx="0" cy="-6.5" rx="4.6" ry="6.6" fill="#fffaf2" stroke="#e0c3a0" stroke-width="1.1" transform="rotate(${a})"/>`).join('')}
+        <circle r="4" fill="#f2c14e" stroke="#c99a2e" stroke-width="1.1"/>
+        <circle cx="1.2" cy="-1.2" r="1.3" fill="#fff3c0"/>
       </g>`;
     }
     if (n === 2) {
       // 首にスカーフ
-      return `<path d="M-23 -86 Q0 -77 23 -86 L5 -64 Q0 -59 -5 -64 Z" fill="#d97a6c" stroke="#a85548" stroke-width="1.8" stroke-linejoin="round"/>
-        <g fill="#f7dcd2">${[[-12, -82], [0, -78], [12, -82], [-4, -70], [5, -72]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.7"/>`).join('')}</g>`;
+      return `<path d="M-30 -90 Q0 -76 30 -90 L8 -64 Q0 -58 -8 -64 Z" fill="#d97a6c" stroke="#a85548" stroke-width="2" stroke-linejoin="round"/>
+        <g fill="#f7dcd2">${[[-16, -86], [0, -80], [16, -86], [-5, -71], [6, -73]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.9"/>`).join('')}</g>`;
     }
     // ちょうネクタイ
-    return `<g transform="translate(0 -79)">
-      <path d="M0 0 L-15 -8 Q-18 0 -15 8 Z M0 0 L15 -8 Q18 0 15 8 Z" fill="#3f5f8a" stroke="#2c4566" stroke-width="1.6" stroke-linejoin="round"/>
-      <rect x="-4" y="-4.5" width="8" height="9" rx="2.5" fill="#4f71a0" stroke="#2c4566" stroke-width="1.4"/>
-      <path d="M-12 -4 L-6 -1 M12 -4 L6 -1" stroke="#7d9bc4" stroke-width="1.2" stroke-linecap="round"/>
+    return `<g transform="translate(0 -82)">
+      <path d="M0 0 C-6 -6 -14 -10 -18 -8 C-21 -4 -21 4 -18 8 C-14 10 -6 6 0 0 Z M0 0 C6 -6 14 -10 18 -8 C21 -4 21 4 18 8 C14 10 6 6 0 0 Z" fill="#3f5f8a" stroke="#2c4566" stroke-width="1.8" stroke-linejoin="round"/>
+      <rect x="-4.5" y="-5" width="9" height="10" rx="3" fill="#4f71a0" stroke="#2c4566" stroke-width="1.5"/>
+      <path d="M-14 -4 Q-10 -2 -7 -1 M14 -4 Q10 -2 7 -1" stroke="#86a3ca" stroke-width="1.3" stroke-linecap="round" fill="none"/>
     </g>`;
   }
 
+  /** うで（side は 1 が画面の右、-1 が左）。先は二つに割れたひづめ。 */
   function pigArm(side) {
     const s = side;
-    const arm = `M${-30 * s} -80 C${-44 * s} -74 ${-52 * s} -60 ${-51 * s} -48 C${-50 * s} -41 ${-43 * s} -39 ${-40 * s} -45 C${-39 * s} -55 ${-35 * s} -64 ${-27 * s} -70 Z`;
-    const hoof = `M${-51 * s} -48 C${-50 * s} -41 ${-43 * s} -39 ${-40 * s} -45 L${-44 * s} -51 Z`;
-    return `<path d="${arm}" fill="url(#g-pig-limb)" ${PIG_LINE}/>
-      <path d="${hoof}" fill="#8c5a52"/>
-      <path d="M${-46 * s} -48 l${-1 * s} 5" stroke="#6e4440" stroke-width="1.2" stroke-linecap="round"/>`;
+    const X = (v) => v * s;
+    return `<path d="M${X(36)} -92 C${X(50)} -88 ${X(60)} -76 ${X(64)} -62 C${X(66)} -52 ${X(61)} -45 ${X(54)} -46 C${X(48)} -47 ${X(46)} -54 ${X(45)} -60 C${X(43)} -68 ${X(38)} -74 ${X(30)} -78 Z" fill="url(#g-pig-limb)" ${PIG_LINE}/>
+      <path d="M${X(64.6)} -56 C${X(65)} -49 ${X(60)} -45 ${X(54)} -46 C${X(49)} -47 ${X(46.5)} -52 ${X(46)} -57 C${X(52)} -59.5 ${X(59)} -59.5 ${X(64.6)} -56 Z" fill="#9b6158" stroke="#7b4a45" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M${X(55.5)} -58.6 L${X(55)} -46.5" stroke="#6a3f3a" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M${X(47)} -84 C${X(53)} -80 ${X(58)} -73 ${X(61)} -66" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="2.4" stroke-linecap="round"/>`;
   }
 
+  /** 耳（ななめ外へ向かって立ち、先が前へ折れる）。 */
   function pigEar(side) {
     const s = side;
-    // 耳は外側へたれる（先が少し前に折れる）
-    return `<path d="M${-12 * s} -150 C${-26 * s} -164 ${-48 * s} -164 ${-64 * s} -146 C${-60 * s} -134 ${-48 * s} -127 ${-34 * s} -126 Z" fill="url(#g-pig-ear)" ${PIG_LINE}/>
-      <path d="M${-18 * s} -147 C${-30 * s} -157 ${-46 * s} -156 ${-56 * s} -145 C${-52 * s} -137 ${-44 * s} -133 ${-34 * s} -132 Z" fill="#e48e8b" opacity=".7"/>
-      <path d="M${-64 * s} -146 C${-60 * s} -134 ${-52 * s} -130 ${-46 * s} -129 C${-50 * s} -136 ${-56 * s} -142 ${-64 * s} -146 Z" fill="#c9767a" opacity=".6"/>`;
+    const X = (v) => v * s;
+    return `<path d="M${X(-14)} -162 C${X(-26)} -180 ${X(-48)} -188 ${X(-70)} -177 C${X(-68)} -160 ${X(-57)} -148 ${X(-40)} -144 Z" fill="url(#g-pig-ear)" ${PIG_LINE}/>
+      <path d="M${X(-22)} -160 C${X(-31)} -173 ${X(-47)} -179 ${X(-62)} -172 C${X(-61)} -162 ${X(-53)} -153 ${X(-41)} -150 Z" fill="#e58f90" opacity=".75"/>
+      <path d="M${X(-70)} -177 C${X(-67)} -166 ${X(-60)} -159 ${X(-52)} -157 C${X(-55)} -166 ${X(-61)} -173 ${X(-70)} -177 Z" fill="#f5b3ad" stroke="#a25a5c" stroke-width="1.8" stroke-linejoin="round"/>`;
   }
 
   function pig(n) {
     const o = PIG_OUTFIT[n];
-    const oD = mix(o, '#2e2228', 0.32);
-    const oL = mix(o, '#ffffff', 0.45);
+    const oD = mix(o, '#2e2228', 0.34);
+    const oL = mix(o, '#ffffff', 0.5);
+    // 足は短くまるく、先にひづめ
+    const leg = (x) => `<path d="M${x - 10} -24 C${x - 11} -12 ${x - 10} -4 ${x - 9} 0 L${x + 9} 0 C${x + 10} -4 ${x + 11} -12 ${x + 10} -24 Z" fill="url(#g-pig-limb)" ${PIG_LINE}/>
+      <path d="M${x - 9.6} -6.5 C${x - 4} -8 ${x + 4} -8 ${x + 9.6} -6.5 L${x + 9} 0 L${x - 9} 0 Z" fill="#9b6158" stroke="#7b4a45" stroke-width="1.6" stroke-linejoin="round"/>
+      <path d="M${x} -7.5 V0" stroke="#6a3f3a" stroke-width="1.6" stroke-linecap="round"/>`;
     return `
-${shadow(46, 8)}
+${shadow(50, 8)}
 <g class="a-body">
-  <path d="M37 -32 c12 -2 14 -14 6 -16 c-7 -2 -7 7 0 6" fill="none" stroke="#c97f80" stroke-width="3" stroke-linecap="round"/>
-  <path d="M-27 -20 C-28 -10 -28 -4 -26 0 L-10 0 C-8 -4 -8 -12 -9 -20 Z" fill="url(#g-pig-limb)" ${PIG_LINE}/>
-  <path d="M9 -20 C8 -12 8 -4 10 0 L26 0 C28 -4 28 -10 27 -20 Z" fill="url(#g-pig-limb)" ${PIG_LINE}/>
-  <path d="M-26.5 -6 H-9.5 L-10 0 H-26 Z M9.5 -6 H26.5 L26 0 H10 Z" fill="#8c5a52"/>
-  <path d="M-18 -6 V0 M18 -6 V0" stroke="#5f3b37" stroke-width="1.4"/>
-  <path d="${PIG_BODY}" fill="url(#g-pig)" ${PIG_LINE}/>
+  <path d="M40 -34 c13 -2 16 -15 7 -18 c-8 -2 -8 8 0 7" fill="none" stroke="#c97f80" stroke-width="3.4" stroke-linecap="round"/>
+  ${leg(-18)}${leg(18)}
+  <path d="${PIG_BODY}" fill="url(#g-pig)"/>
   <g clip-path="url(#cp-pig-body)">
-    <path d="M-20 -92 C-46 -70 -46 -30 -8 -10 L-70 -10 L-70 -92 Z" fill="#cf7b7b" opacity=".3"/>
+    <path d="M-22 -104 C-52 -74 -46 -30 -6 -10 L-70 -10 L-70 -104 Z" fill="#cf7b7b" opacity=".28"/>
+    <path d="M-60 -54 C-30 -47 30 -47 60 -54 V0 H-60 Z" fill="url(#g-outfit${n})"/>
+    <path d="M-17 -88 C-17 -78 -17 -64 -18 -50 L18 -50 C17 -64 17 -78 17 -88 Z" fill="url(#g-outfit${n})" stroke="${oD}" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M-60 -54 C-30 -47 30 -47 60 -54" fill="none" stroke="${oD}" stroke-width="2"/>
+    <path d="M-38 -48 C-48 -34 -38 -16 -14 -12 L-60 -12 Z" fill="${oD}" opacity=".28"/>
+    <path d="M-13 -84 C-13 -74 -13 -62 -14 -52 M13 -84 C13 -74 13 -62 14 -52 M-42 -46 C-24 -42 24 -42 42 -46 M0 -44 V-14" fill="none" stroke="${oL}" stroke-width="1.4" stroke-dasharray="3.5 3" stroke-linecap="round"/>
+    <path d="M-9 -76 H9 V-66 Q0 -62 -9 -66 Z" fill="none" stroke="${oD}" stroke-width="1.7" stroke-linejoin="round"/>
+    <ellipse cx="22" cy="-80" rx="12" ry="7" fill="#fff" opacity=".22" transform="rotate(35 22 -80)"/>
   </g>
-  <path d="M-42.5 -48 C-43 -30 -35 -13 0 -12 C35 -13 43 -30 42.5 -48 C28 -43 -28 -43 -42.5 -48 Z" fill="url(#g-outfit${n})" stroke="${oD}" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M-15 -78 C-16 -68 -16 -56 -17 -45 L17 -45 C16 -56 16 -68 15 -78 Z" fill="url(#g-outfit${n})" stroke="${oD}" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M-30 -46 C-40 -36 -34 -18 -14 -13 C-30 -22 -34 -34 -30 -46 Z" fill="${oD}" opacity=".3"/>
-  <path d="M-12 -75 C-13 -66 -13 -56 -14 -48 M12 -75 C13 -66 13 -56 14 -48 M-38 -43 C-24 -39 24 -39 38 -43 M-2 -40 V-16" fill="none" stroke="${oL}" stroke-width="1.3" stroke-dasharray="3 3" stroke-linecap="round"/>
-  <path d="M-8 -67 H8 V-58 Q0 -54 -8 -58 Z" fill="none" stroke="${oD}" stroke-width="1.6" stroke-linejoin="round"/>
-  <path d="M-15 -76 C-18 -82 -21 -86 -25 -88 M15 -76 C18 -82 21 -86 25 -88" stroke="${oD}" stroke-width="5" stroke-linecap="round" fill="none"/>
-  <circle cx="-12" cy="-73" r="2.8" fill="#f3e6c8" stroke="${oD}" stroke-width="1.2"/>
-  <circle cx="12" cy="-73" r="2.8" fill="#f3e6c8" stroke="${oD}" stroke-width="1.2"/>
+  <path d="${PIG_BODY}" fill="none" ${PIG_LINE}/>
+  <path d="M-16 -86 C-21 -92 -26 -95 -31 -96 M16 -86 C21 -92 26 -95 31 -96" stroke="${oD}" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+  <circle cx="-13" cy="-83" r="3" fill="#f3e6c8" stroke="${oD}" stroke-width="1.3"/>
+  <circle cx="13" cy="-83" r="3" fill="#f3e6c8" stroke="${oD}" stroke-width="1.3"/>
   ${n === 2 ? pigAccessory(2) : ''}
   ${pigArm(1)}${pigArm(-1)}
   ${pigEar(1)}${pigEar(-1)}
-  <path d="${PIG_HEAD}" fill="url(#g-pig)" ${PIG_LINE}/>
+  <path d="${PIG_HEAD}" fill="url(#g-pig)"/>
   <g clip-path="url(#cp-pig-head)">
-    <path d="M-30 -152 C-58 -120 -46 -84 -4 -75 L-70 -70 L-70 -160 Z" fill="#cf7b7b" opacity=".3"/>
-    <ellipse cx="16" cy="-138" rx="15" ry="7.5" fill="#fff" opacity=".4" transform="rotate(20 16 -138)"/>
+    <path d="M-34 -168 C-64 -130 -48 -88 -2 -78 L-70 -70 L-70 -170 Z" fill="#cf7b7b" opacity=".26"/>
+    <ellipse cx="20" cy="-152" rx="17" ry="8" fill="#fff" opacity=".45" transform="rotate(22 20 -152)"/>
   </g>
-  <path d="M-3 -153 c-3 -8 3 -12 7 -8 c-4 0 -4 4 -2 6 M4 -153 c2 -6 8 -6 9 -1" fill="none" stroke="#c97f80" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="${PIG_HEAD}" fill="none" ${PIG_LINE}/>
+  <path d="M-4 -167 c-4 -9 3 -14 8 -9 c-5 0 -5 4 -2 7 M4 -167 c2 -7 9 -7 10 -1" fill="none" stroke="#c97f80" stroke-width="2.4" stroke-linecap="round"/>
   ${n !== 2 ? pigAccessory(n) : ''}
-  <ellipse cx="-27" cy="-96" rx="10" ry="7" fill="url(#g-blush)"/>
-  <ellipse cx="27" cy="-96" rx="10" ry="7" fill="url(#g-blush)"/>
+  <ellipse cx="-34" cy="-106" rx="11" ry="7.5" fill="url(#g-blush)"/>
+  <ellipse cx="34" cy="-106" rx="11" ry="7.5" fill="url(#g-blush)"/>
   <g class="p-eye p-eye-n">
-    <ellipse cx="-15" cy="-118" rx="4.8" ry="5.8" fill="${INK}"/><ellipse cx="15" cy="-118" rx="4.8" ry="5.8" fill="${INK}"/>
-    <circle cx="-13.2" cy="-120.5" r="1.8" fill="#fff"/><circle cx="16.8" cy="-120.5" r="1.8" fill="#fff"/>
-    <circle cx="-16.4" cy="-115.6" r=".9" fill="#fff" opacity=".7"/><circle cx="13.6" cy="-115.6" r=".9" fill="#fff" opacity=".7"/>
+    <ellipse cx="-20" cy="-128" rx="6.6" ry="8.2" fill="${INK}"/><ellipse cx="20" cy="-128" rx="6.6" ry="8.2" fill="${INK}"/>
+    <ellipse cx="-20" cy="-123.4" rx="3.8" ry="2.4" fill="#61758c" opacity=".7"/><ellipse cx="20" cy="-123.4" rx="3.8" ry="2.4" fill="#61758c" opacity=".7"/>
+    <circle cx="-17.6" cy="-131.4" r="2.7" fill="#fff"/><circle cx="22.4" cy="-131.4" r="2.7" fill="#fff"/>
+    <circle cx="-22.2" cy="-124.4" r="1.2" fill="#fff" opacity=".8"/><circle cx="17.8" cy="-124.4" r="1.2" fill="#fff" opacity=".8"/>
   </g>
-  <g class="p-eye p-eye-h"><path d="M-21 -116 q6 -8 12 0" ${line(3)}/><path d="M9 -116 q6 -8 12 0" ${line(3)}/></g>
+  <g class="p-eye p-eye-h"><path d="M-28 -126 q8 -10 16 0" ${line(3.4)}/><path d="M12 -126 q8 -10 16 0" ${line(3.4)}/></g>
   <g class="p-eye p-eye-s">
-    <ellipse cx="-15" cy="-119" rx="7" ry="8" fill="#fff" stroke="rgba(46,58,70,.4)" stroke-width="1.4"/><ellipse cx="15" cy="-119" rx="7" ry="8" fill="#fff" stroke="rgba(46,58,70,.4)" stroke-width="1.4"/>
-    <circle cx="-15" cy="-118" r="3" fill="${INK}"/><circle cx="15" cy="-118" r="3" fill="${INK}"/>
+    <ellipse cx="-20" cy="-129" rx="8.5" ry="9.5" fill="#fff" stroke="rgba(46,58,70,.45)" stroke-width="1.5"/><ellipse cx="20" cy="-129" rx="8.5" ry="9.5" fill="#fff" stroke="rgba(46,58,70,.45)" stroke-width="1.5"/>
+    <circle cx="-20" cy="-128" r="3.6" fill="${INK}"/><circle cx="20" cy="-128" r="3.6" fill="${INK}"/>
+    <circle cx="-18.8" cy="-129.4" r="1.1" fill="#fff"/><circle cx="21.2" cy="-129.4" r="1.1" fill="#fff"/>
   </g>
-  <path d="M-21 -129 q6 -3 11 -1 M10 -130 q6 -2 11 1" ${line(1.8, 'rgba(120,60,60,.55)')}/>
-  <ellipse cx="0" cy="-100" rx="17" ry="12.5" fill="url(#g-snout)" stroke="#b86a6c" stroke-width="2"/>
-  <path d="M-10 -108 q10 -4.5 20 0" ${line(2, 'rgba(255,255,255,.55)')}/>
-  <ellipse cx="-5.5" cy="-99.5" rx="2.6" ry="3.8" fill="#8a3f4c"/>
-  <ellipse cx="5.5" cy="-99.5" rx="2.6" ry="3.8" fill="#8a3f4c"/>
-  <path class="p-mouth p-mouth-n" d="M-7 -82.5 q7 5 14 0" ${line(2.4, '#7d3b45')}/>
-  <path class="p-mouth p-mouth-h" d="M-10 -84 q10 12 20 0 Z" fill="#c4505f" stroke="#8f3443" stroke-width="1.4" stroke-linejoin="round"/>
-  <ellipse class="p-mouth p-mouth-s" cx="0" cy="-80" rx="4.5" ry="5.5" fill="#c4505f" stroke="#8f3443" stroke-width="1.4"/>
-  <path class="p-sweat" d="M42 -142 q8 12 0 16 q-8 -4 0 -16 Z" fill="#b5e0f5" stroke="#7fb8d6" stroke-width="1.2"/>
+  <path d="M-27 -142 q7 -4 13 -1.5 M14 -143.5 q7 -2.5 13 1.5" ${line(2, 'rgba(120,60,60,.5)')}/>
+  <ellipse cx="0" cy="-106" rx="20" ry="13.5" fill="url(#g-snout)" stroke="#b0646a" stroke-width="2.2"/>
+  <path d="M-11 -115 q11 -4.5 22 0" ${line(2.2, 'rgba(255,255,255,.6)')}/>
+  <ellipse cx="-6.5" cy="-105" rx="3" ry="4.4" fill="#8a3f4c"/>
+  <ellipse cx="6.5" cy="-105" rx="3" ry="4.4" fill="#8a3f4c"/>
+  <path class="p-mouth p-mouth-n" d="M-7 -88.5 q7 5.5 14 0" ${line(2.6, '#7d3b45')}/>
+  <path class="p-mouth p-mouth-h" d="M-10 -90 q10 12 20 0 Z" fill="#c4505f" stroke="#8f3443" stroke-width="1.5" stroke-linejoin="round"/>
+  <ellipse class="p-mouth p-mouth-s" cx="0" cy="-87" rx="4.5" ry="5" fill="#c4505f" stroke="#8f3443" stroke-width="1.5"/>
+  <path class="p-sweat" d="M50 -152 q9 13 0 18 q-9 -5 0 -18 Z" fill="#b5e0f5" stroke="#7fb8d6" stroke-width="1.3"/>
 </g>`;
   }
 
   // ---------------------------------------------------------------- おおかみ（右向き）
 
-  const WOLF_HEAD = 'M-18 -138 C-20 -160 -2 -174 20 -172 C34 -171 44 -164 50 -154 C62 -150 78 -146 87 -141 C94 -137 93 -127 85 -123 C74 -118 60 -114 46 -112 C38 -106 26 -102 12 -102 L2 -96 L4 -104 L-8 -100 L-6 -108 L-20 -108 L-12 -116 L-22 -120 L-16 -126 C-18 -130 -18 -134 -18 -138 Z';
-  const WOLF_BODY = 'M-14 -106 C-34 -98 -44 -74 -42 -50 C-40 -36 -28 -30 -8 -30 L24 -30 C36 -34 42 -44 40 -62 C38 -82 32 -98 24 -106 Z';
-  const WL = 'stroke="#3d4356" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"';
+  const WOLF_HEAD = 'M-20 -150 C-22 -176 0 -192 24 -190 C40 -189 52 -181 58 -170 C70 -164 84 -156 93 -150 C101 -145 99 -133 90 -129 C78 -123 64 -121 52 -121 C42 -112 28 -109 14 -110 L6 -103 L5 -111 L-6 -106 L-5 -114 L-18 -113 L-11 -121 L-22 -124 L-15 -131 C-20 -136 -21 -143 -20 -150 Z';
+  const WOLF_BODY = 'M-4 -116 C-30 -112 -46 -88 -46 -62 C-46 -40 -32 -28 -10 -28 L20 -28 C38 -28 46 -42 44 -62 C42 -88 28 -114 -4 -116 Z';
+  const WL = 'stroke="#3b4154" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"';
+
+  /** オオカミの手。まるい手のひらに、指を 3 本と親指を描く（cx, cy が手の中心）。 */
+  function wolfPaw(cx, cy, rot, fill) {
+    return `<g transform="translate(${cx} ${cy}) rotate(${rot})">
+      <path d="M-9 -6 C-9 -12 -3 -14 3 -13 C9 -12 12 -7 11 -1 C12 3 10 7 7 8 C6 11 2 12 0 10 C-2 12 -6 12 -7 9 C-10 9 -12 5 -10 2 C-12 -1 -11 -4 -9 -6 Z" fill="${fill}" ${WL}/>
+      <path d="M0 10 C0 7 1 4 2 2 M-7 9 C-6 6 -5 4 -4 2" fill="none" stroke="#3b4154" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M8 -9 C13 -10 16 -6 14 -2 C13 0 11 0 10 -1" fill="${fill}" ${WL}/>
+    </g>`;
+  }
 
   function wolf() {
+    // ふさふさのしっぽ（ぎざぎざの毛先）
+    const tail = 'M-36 -66 C-58 -62 -82 -74 -94 -98 C-102 -114 -102 -132 -94 -146 L-90 -134 L-84 -146 L-80 -132 L-72 -140 L-72 -124 C-70 -110 -62 -98 -50 -92 L-56 -86 C-48 -80 -40 -80 -32 -82 Z';
+    const leg = (x, fill) => `<path d="M${x - 13} -40 C${x - 14} -26 ${x - 10} -16 ${x - 8} -8 L${x + 8} -8 C${x + 11} -18 ${x + 14} -28 ${x + 13} -40 Z" fill="${fill}" ${WL}/>
+      <path d="M${x - 14} 0 C${x - 16} -7 ${x - 10} -11 ${x + 1} -11 C${x + 12} -11 ${x + 19} -7 ${x + 18} 0 Z" fill="${fill}" ${WL}/>
+      <path d="M${x + 4} -1 V-5 M${x + 11} -1 V-5" stroke="#3b4154" stroke-width="1.7" stroke-linecap="round"/>`;
     return `
-${shadow(62, 9)}
+${shadow(64, 9)}
 <g class="a-flip"><g class="a-body">
-  <path d="M-36 -64 C-62 -64 -86 -80 -96 -108 C-100 -122 -98 -136 -90 -146 L-87 -134 L-79 -142 L-78 -128 L-68 -132 C-68 -116 -60 -102 -48 -96 L-55 -90 C-47 -84 -40 -82 -32 -82 Z" fill="url(#g-wolf-tail)" ${WL}/>
-  <path d="M-90 -146 L-87 -134 L-79 -142 L-78 -128 C-84 -128 -92 -134 -90 -146 Z" fill="#efe9df"/>
-  <path d="M-84 -112 q-8 -6 -10 -16 M-72 -98 q-10 -4 -14 -12 M-58 -84 q-10 -2 -15 -8" ${line(1.6, 'rgba(40,46,60,.35)')}/>
-  <path d="M-32 -36 C-36 -22 -32 -10 -26 -5 L-28 0 L-8 0 C-8 -10 -10 -22 -10 -36 Z" fill="url(#g-wolf-dark)" ${WL}/>
-  <path d="${WOLF_BODY}" fill="url(#g-wolf)" ${WL}/>
+  <path d="${tail}" fill="url(#g-wolf-tail)" ${WL}/>
+  <path d="M-94 -146 L-90 -134 L-84 -146 L-80 -132 C-88 -130 -96 -136 -94 -146 Z" fill="#f1ece3"/>
+  <path d="M-86 -114 q-8 -7 -9 -17 M-74 -100 q-10 -4 -14 -13 M-60 -88 q-10 -2 -15 -9" ${line(1.7, 'rgba(40,46,60,.3)')}/>
+  ${leg(-22, 'url(#g-wolf-dark)')}
+  ${wolfPaw(-40, -64, 10, 'url(#g-wolf-dark)')}
+  ${leg(18, 'url(#g-wolf)')}
+  <path d="${WOLF_BODY}" fill="url(#g-wolf)"/>
   <g clip-path="url(#cp-wolf-body)">
-    <path d="M-16 -110 C-46 -84 -46 -44 -12 -28 L-70 -28 L-70 -110 Z" fill="#4b5266" opacity=".35"/>
+    <path d="M-18 -122 C-50 -92 -48 -46 -12 -26 L-70 -26 L-70 -122 Z" fill="#4b5266" opacity=".32"/>
+    <path d="M6 -114 C26 -108 36 -88 34 -64 L28 -70 L25 -58 L18 -67 L13 -55 L7 -66 C1 -82 -1 -100 6 -114 Z" fill="url(#g-wolf-light)"/>
+    <path d="M12 -104 l4 6 M18 -92 l4 6 M12 -82 l3 6" ${line(1.5, 'rgba(120,110,95,.4)')}/>
+    <path d="M-60 -64 C-30 -56 20 -56 60 -64 V-20 H-60 Z" fill="url(#g-shorts)"/>
+    <path d="M-60 -64 C-30 -56 20 -56 60 -64" fill="none" stroke="#4a3a2e" stroke-width="2.2"/>
+    <path d="M-44 -59 C-20 -52 20 -52 42 -60" fill="none" stroke="#a08670" stroke-width="1.3" stroke-dasharray="3.5 3"/>
   </g>
-  <path d="M4 -106 C22 -102 30 -84 28 -64 L22 -70 L20 -58 L13 -66 L9 -54 L3 -64 C-2 -80 -4 -96 4 -106 Z" fill="url(#g-wolf-light)"/>
-  <path d="M8 -98 l4 6 M14 -88 l4 6 M10 -78 l3 6" ${line(1.4, 'rgba(120,110,95,.45)')}/>
-  <path d="M-43 -62 C-44 -46 -40 -34 -30 -30 L-4 -30 L2 -40 L8 -30 L32 -30 C40 -36 42 -48 41 -64 C22 -56 -22 -56 -43 -62 Z" fill="url(#g-shorts)" stroke="#4a3a2e" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M-40 -58 C-20 -52 20 -52 39 -60" fill="none" stroke="#9c8068" stroke-width="1.2" stroke-dasharray="3 3"/>
-  <g transform="translate(18 -46) rotate(8)">
-    <rect x="-8" y="-7" width="16" height="13" rx="2" fill="#9a7a52" stroke="#5e4630" stroke-width="1.4"/>
-    <path d="M-6 -5 h12 M-6 4 h12 M-6 -5 v9 M6 -5 v9" fill="none" stroke="#e0c9a0" stroke-width="1" stroke-dasharray="2 2"/>
+  <path d="${WOLF_BODY}" fill="none" ${WL}/>
+  <g transform="translate(20 -44) rotate(8)">
+    <rect x="-8.5" y="-7.5" width="17" height="14" rx="2.5" fill="#a0805a" stroke="#5e4630" stroke-width="1.5"/>
+    <path d="M-6 -5 h12 M-6 4 h12 M-6 -5 v9 M6 -5 v9" fill="none" stroke="#e4cfa6" stroke-width="1.1" stroke-dasharray="2 2"/>
   </g>
   <g class="w-hot">
-    <ellipse cx="-32" cy="-46" rx="13" ry="12" fill="#f0656e" opacity=".9" filter="url(#f-soft)"/>
-    <path class="w-steam" d="M-40 -66 q-6 -8 0 -16 q6 -8 0 -16 M-24 -68 q-6 -8 0 -16 q6 -8 0 -16" ${line(4, 'rgba(255,255,255,.9)')}/>
+    <ellipse cx="-34" cy="-46" rx="14" ry="13" fill="#f0656e" opacity=".9" filter="url(#f-soft)"/>
+    <path class="w-steam" d="M-42 -68 q-6 -8 0 -16 q6 -8 0 -16 M-26 -70 q-6 -8 0 -16 q6 -8 0 -16" ${line(4, 'rgba(255,255,255,.9)')}/>
   </g>
   <g class="w-bandage">
-    <rect x="-49" y="-52" width="34" height="11" rx="5" fill="#f6dcc0" stroke="#d2b088" stroke-width="1.4" transform="rotate(35 -32 -46)"/>
-    <rect x="-49" y="-52" width="34" height="11" rx="5" fill="#f6dcc0" stroke="#d2b088" stroke-width="1.4" transform="rotate(-35 -32 -46)"/>
-    <circle cx="-32" cy="-46" r="2" fill="#e3c39d"/>
+    <rect x="-51" y="-51.5" width="34" height="11" rx="5" fill="#f6dcc0" stroke="#d2b088" stroke-width="1.4" transform="rotate(35 -34 -46)"/>
+    <rect x="-51" y="-51.5" width="34" height="11" rx="5" fill="#f6dcc0" stroke="#d2b088" stroke-width="1.4" transform="rotate(-35 -34 -46)"/>
+    <circle cx="-34" cy="-46" r="2" fill="#e3c39d"/>
   </g>
-  <path d="M8 -36 C8 -22 10 -10 14 -5 L12 0 L34 0 C32 -8 28 -22 28 -36 Z" fill="url(#g-wolf)" ${WL}/>
-  <path d="M-29 0 C-30 -5 -24 -7 -18 -7 C-10 -7 -6 -4 -7 0 Z M11 0 C10 -5 16 -7 22 -7 C30 -7 35 -4 35 0 Z" fill="#454b5d"/>
-  <path d="M20 -60 C18 -76 14 -92 6 -104" fill="none" stroke="#5c4030" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="20" cy="-59" r="2.6" fill="#d7b36a"/>
-  <path d="M16 -98 C30 -94 42 -82 44 -68 C46 -60 38 -56 34 -62 C32 -72 24 -82 12 -86 Z" fill="url(#g-wolf)" ${WL}/>
-  <path d="M44 -68 C46 -60 38 -56 34 -62 C36 -66 40 -68 44 -68 Z" fill="#454b5d"/>
+  <path d="M24 -62 C22 -80 16 -98 6 -112" fill="none" stroke="#5c4030" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="24" cy="-61" r="2.8" fill="#d7b36a" stroke="#9a7a3a" stroke-width="1"/>
+  <path d="M18 -104 C32 -100 44 -88 46 -74 L34 -70 C32 -80 26 -88 14 -92 Z" fill="url(#g-wolf)" ${WL}/>
+  ${wolfPaw(42, -66, -8, 'url(#g-wolf)')}
   <g class="w-ear w-ear-up">
-    <path d="M-10 -164 L-22 -204 L6 -170 Z" fill="url(#g-wolf-dark)" ${WL}/>
-    <path d="M8 -170 L14 -210 L32 -168 Z" fill="url(#g-wolf)" ${WL}/>
-    <path d="M14 -172 L16 -198 L26 -170 Z" fill="#e5b0b4"/>
+    <path d="M-12 -176 C-20 -192 -26 -210 -24 -222 C-12 -212 0 -196 6 -184 Z" fill="url(#g-wolf-dark)" ${WL}/>
+    <path d="M8 -184 C10 -200 14 -216 20 -226 C30 -214 36 -196 36 -180 Z" fill="url(#g-wolf)" ${WL}/>
+    <path d="M15 -186 C16 -198 18 -208 21 -214 C27 -204 29 -194 29 -184 Z" fill="#e8b4b8"/>
   </g>
   <g class="w-ear w-ear-down">
-    <path d="M-10 -162 L-46 -172 L-2 -170 Z" fill="url(#g-wolf-dark)" ${WL}/>
-    <path d="M8 -168 L-26 -188 L28 -166 Z" fill="url(#g-wolf)" ${WL}/>
+    <path d="M-12 -174 C-28 -180 -42 -184 -54 -182 C-42 -174 -24 -168 -4 -168 Z" fill="url(#g-wolf-dark)" ${WL}/>
+    <path d="M10 -182 C-6 -192 -22 -198 -36 -198 C-24 -186 -2 -176 28 -176 Z" fill="url(#g-wolf)" ${WL}/>
   </g>
-  <path d="${WOLF_HEAD}" fill="url(#g-wolf)" ${WL}/>
+  <path d="${WOLF_HEAD}" fill="url(#g-wolf)"/>
   <g clip-path="url(#cp-wolf-head)">
-    <path d="M-20 -160 C-30 -130 -10 -104 20 -100 L-40 -96 L-40 -170 Z" fill="#4b5266" opacity=".32"/>
-    <path d="M30 -170 C46 -166 56 -158 60 -150 C72 -148 82 -145 88 -141" ${line(6, 'rgba(255,255,255,.22)')}/>
+    <path d="M-22 -172 C-32 -140 -10 -114 22 -110 L-40 -100 L-40 -190 Z" fill="#4b5266" opacity=".3"/>
+    <path d="M50 -138 C64 -140 82 -141 96 -137 C88 -127 68 -122 50 -121 C44 -126 44 -134 50 -138 Z" fill="url(#g-wolf-light)"/>
+    <path d="M30 -186 C46 -182 58 -172 62 -164 C74 -160 86 -154 94 -149" ${line(6, 'rgba(255,255,255,.22)')}/>
   </g>
-  <path d="M46 -124 C60 -126 76 -127 86 -124 C80 -117 62 -114 46 -112 C42 -116 42 -121 46 -124 Z" fill="url(#g-wolf-light)"/>
-  <path d="M-4 -110 L-10 -104 L4 -106 Z M-14 -118 L-18 -112 L-6 -114 Z" fill="#c9c4bc"/>
-  <path d="M-2 -164 q8 -5 18 -2 M2 -156 q6 -3 12 -1" ${line(1.4, 'rgba(255,255,255,.35)')}/>
-  <circle class="w-cheek" cx="56" cy="-118" r="13" fill="url(#g-wolf-light)" stroke="rgba(61,67,86,.4)" stroke-width="1.5"/>
-  <path d="M80 -146 C88 -148 96 -144 95 -137 C94 -131 86 -130 81 -133 C77 -136 77 -143 80 -146 Z" fill="#2a2d38"/>
-  <ellipse cx="87" cy="-142" rx="3.2" ry="1.8" fill="#fff" opacity=".55"/>
+  <path d="${WOLF_HEAD}" fill="none" ${WL}/>
+  <path d="M-6 -116 L-12 -109 L3 -111 Z M-16 -125 L-20 -118 L-7 -120 Z" fill="#cfcac2"/>
+  <path d="M-2 -178 q9 -6 19 -2 M2 -170 q7 -3 13 -1" ${line(1.5, 'rgba(255,255,255,.35)')}/>
+  <circle class="w-cheek" cx="60" cy="-128" r="13" fill="url(#g-wolf-light)" stroke="rgba(61,67,86,.4)" stroke-width="1.5"/>
+  <path d="M84 -156 C93 -158 102 -153 101 -145 C100 -138 91 -137 86 -140 C81 -143 80 -152 84 -156 Z" fill="#2a2d38"/>
+  <ellipse cx="91" cy="-152" rx="3.6" ry="2" fill="#fff" opacity=".6"/>
   <g class="w-eye w-eye-n">
-    <path d="M18 -148 C22 -156 34 -157 39 -149 C34 -142 22 -141 18 -148 Z" fill="#fffaf0" stroke="#3d4356" stroke-width="1.6"/>
-    <circle cx="30" cy="-148.5" r="5" fill="#d99a35"/>
-    <circle cx="31" cy="-148.5" r="2.6" fill="#22252e"/>
-    <circle cx="32.6" cy="-150.6" r="1.3" fill="#fff"/>
+    <path d="M20 -160 C24 -170 38 -172 44 -162 C38 -153 24 -152 20 -160 Z" fill="#fffaf0" stroke="#3b4154" stroke-width="1.8"/>
+    <circle cx="33" cy="-161" r="6" fill="#d99a35"/>
+    <circle cx="34" cy="-161" r="3.1" fill="#22252e"/>
+    <circle cx="36" cy="-163.5" r="1.6" fill="#fff"/>
   </g>
-  <path class="w-eye w-eye-x" d="M22 -153 L34 -148 L22 -143" ${line(3.2)}/>
-  <path class="w-eye w-eye-h" d="M19 -147 q9 -9 19 0" ${line(3.2)}/>
-  <path class="w-brow w-brow-sly" d="M15 -159 L41 -152" ${line(4, '#3d4356')}/>
-  <path class="w-brow w-brow-sad" d="M18 -153 L39 -162" ${line(4, '#3d4356')}/>
+  <path class="w-eye w-eye-x" d="M24 -166 L37 -160.5 L24 -155" ${line(3.4)}/>
+  <path class="w-eye w-eye-h" d="M21 -159 q11 -11 22 0" ${line(3.4)}/>
+  <path class="w-brow w-brow-sly" d="M16 -173 L46 -165" ${line(4.4, '#3b4154')}/>
+  <path class="w-brow w-brow-sad" d="M19 -166 L43 -176" ${line(4.4, '#3b4154')}/>
   <g class="w-mouth w-mouth-grin">
-    <path d="M48 -114 Q64 -108 83 -121" ${line(2.4)}/>
-    <path d="M60 -111.5 l3 7 l4 -7.5 Z" fill="#fffaf0" stroke="#3d4356" stroke-width="1"/>
+    <path d="M52 -124 Q68 -117 88 -131" ${line(2.6)}/>
+    <path d="M64 -121 l3 7.5 l4.5 -8 Z" fill="#fffaf0" stroke="#3b4154" stroke-width="1.1"/>
   </g>
-  <ellipse class="w-mouth w-mouth-o" cx="84" cy="-120" rx="5" ry="6" fill="#2a2d38"/>
-  <path class="w-mouth w-mouth-sad" d="M50 -112 Q66 -120 82 -117" ${line(2.4)}/>
-  <path class="w-mouth w-mouth-smile" d="M48 -117 Q64 -100 83 -121 Z" fill="#b84a5c" stroke="#7d2f3d" stroke-width="1.4" stroke-linejoin="round"/>
-  <path class="w-mouth w-mouth-open" d="M48 -117 Q64 -90 85 -121 Z" fill="#8f2f42" stroke="#5e1d2b" stroke-width="1.4" stroke-linejoin="round"/>
-  <ellipse class="w-blush" cx="40" cy="-128" rx="10" ry="6" fill="url(#g-blush)"/>
-  <path class="w-sweat" d="M-12 -182 q9 13 0 18 q-9 -5 0 -18 Z M-26 -160 q7 10 0 14 q-7 -4 0 -14 Z" fill="#b5e0f5" stroke="#7fb8d6" stroke-width="1.2"/>
-  <path class="w-tear" d="M26 -138 q6 10 0 14 q-6 -4 0 -14 Z" fill="#b5e0f5" stroke="#7fb8d6" stroke-width="1.2"/>
+  <ellipse class="w-mouth w-mouth-o" cx="89" cy="-130" rx="5.5" ry="6.5" fill="#2a2d38"/>
+  <path class="w-mouth w-mouth-sad" d="M54 -122 Q70 -130 87 -127" ${line(2.6)}/>
+  <path class="w-mouth w-mouth-smile" d="M52 -127 Q68 -109 88 -131 Z" fill="#b84a5c" stroke="#7d2f3d" stroke-width="1.5" stroke-linejoin="round"/>
+  <path class="w-mouth w-mouth-open" d="M52 -127 Q68 -98 90 -131 Z" fill="#8f2f42" stroke="#5e1d2b" stroke-width="1.5" stroke-linejoin="round"/>
+  <ellipse class="w-blush" cx="44" cy="-140" rx="11" ry="6.5" fill="url(#g-blush)"/>
+  <path class="w-sweat" d="M-14 -196 q9 13 0 18 q-9 -5 0 -18 Z M-28 -172 q7 10 0 14 q-7 -4 0 -14 Z" fill="#b5e0f5" stroke="#7fb8d6" stroke-width="1.3"/>
+  <path class="w-tear" d="M29 -150 q6 10 0 14 q-6 -4 0 -14 Z" fill="#b5e0f5" stroke="#7fb8d6" stroke-width="1.3"/>
 </g></g>`;
   }
 
@@ -817,14 +845,16 @@ ${flowers}
 
   // ---------------------------------------------------------------- ヒントと効果
 
-  function hand() {
-    return `<g class="hand">
-      <circle class="ring" r="30" fill="rgba(255,255,255,.18)" stroke="#fff" stroke-width="5"/>
-      <g class="hand-glove" transform="translate(14 30) rotate(-18)">
-        <rect x="-10" y="-34" width="20" height="46" rx="10" fill="#fff" stroke="rgba(46,58,70,.35)" stroke-width="2"/>
-        <rect x="-24" y="-2" width="48" height="46" rx="17" fill="#fff" stroke="rgba(46,58,70,.35)" stroke-width="2"/>
-        <path d="M-8 6 v10 M4 6 v10" ${line(2, 'rgba(46,58,70,.35)')}/>
-      </g>
+  /** さわってほしいものの後ろに出す、やわらかい光ときらきら（r は光の半径）。 */
+  function beckon(r) {
+    const sparkle = (x, y, k, d) => `<g transform="translate(${x} ${y})"><path class="bk-star" style="animation-delay:${d}s" transform="scale(${k})" d="M0 -13 Q2 -2 13 0 Q2 2 0 13 Q-2 2 -13 0 Q-2 -2 0 -13 Z" fill="#fff8c4"/></g>`;
+    return `<g class="beckon-fx">
+      <circle class="bk-glow" r="${r}" fill="url(#g-beckon)"/>
+      <circle class="bk-ring" r="${r * 0.8}" fill="none" stroke="#fff" stroke-width="4"/>
+      ${sparkle(-r * 0.75, -r * 0.55, 1.1, 0)}
+      ${sparkle(r * 0.8, -r * 0.3, 0.9, 0.35)}
+      ${sparkle(-r * 0.2, -r * 0.95, 0.8, 0.7)}
+      ${sparkle(r * 0.45, r * 0.55, 0.7, 1.05)}
     </g>`;
   }
 
@@ -848,6 +878,6 @@ ${flowers}
   root.PigsArt = {
     GROUND, HOUSE_X, PIG_OUTFIT,
     defs, pig, wolf, house, pile, outdoor, indoor, fireplaceBack, fireplaceFront, pitcher,
-    hand, wind, heart, star,
+    beckon, wind, heart, star,
   };
 })(typeof self !== 'undefined' ? self : this);
