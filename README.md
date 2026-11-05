@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | リバーシ | [`reversi/`](reversi/) | 石をはさんで裏返すボードゲーム。CPU対戦（レベル1〜10）と2人対戦に対応 |
 | 3びきのこぶた | [`three-little-pigs/`](three-little-pigs/) | 3歳くらいの子ども向けの絵本ゲーム。タッチや息の「ふーっ」で昔話を進める |
+| おみせやさんごっこ | [`omiseyasan/`](omiseyasan/) | 3歳くらいの子ども向けのお店屋さんごっこ。お客さんが言った品物を棚からタッチしてわたす（やおやさん・くだものやさん・パンやさん） |
 
 各ゲームの遊び方や機能は、それぞれのフォルダの README を見てください。
 
@@ -33,7 +34,8 @@ gaming/
 ├── CLAUDE.md        Claude Code 向けの作業ルール
 ├── index.html       ゲームを選ぶトップページ（GitHub Pages の入口）
 ├── reversi/         リバーシ
-└── three-little-pigs/ 3びきのこぶた
+├── three-little-pigs/ 3びきのこぶた
+└── omiseyasan/      おみせやさんごっこ
 ```
 
 ## ゲームを追加するとき

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#8fd3f4">
+  <title>おみせやさんごっこ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app" id="app" data-shop="">
+    <!-- お店の中から見た景色：奥に空と町、手前にカウンター -->
+    <div class="world" id="world">
+      <div class="sky" aria-hidden="true">
+        <div class="cloud cloud--a"></div>
+        <div class="cloud cloud--b"></div>
+        <div class="cloud cloud--c"></div>
+      </div>
+      <div class="town" id="town" aria-hidden="true"></div>
+
+      <!-- お客さんが来るところ -->
+      <section class="street" id="street">
+        <p class="caption" id="caption" hidden></p>
+        <div class="visit">
+          <div class="customer" id="customer"></div>
+          <div class="bubble" id="bubble" hidden>
+            <div class="bubble-item" id="bubble-item"></div>
+            <p class="bubble-text" id="bubble-text"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- お店のわく（柱・ひさし・かんばん） -->
+      <div class="post post--l" aria-hidden="true"></div>
+      <div class="post post--r" aria-hidden="true"></div>
+      <div class="awning" aria-hidden="true"><div class="awning-scallop"></div></div>
+      <div class="sign" id="sign" aria-hidden="true"><span id="sign-text"></span></div>
+
+      <!-- カウンターと品物 -->
+      <div class="counter">
+        <div class="counter-top" aria-hidden="true"></div>
+        <section class="goods" id="shelf" aria-label="おみせの しなもの"></section>
+      </div>
+    </div>
+
+    <!-- 遊んでいるあいだのボタンとスタンプカード -->
+    <div class="hud" id="hud" hidden>
+      <button type="button" class="toy-btn" id="btn-home" aria-label="おわる">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 11.5 12 4.5l8.5 7M6 10v9.5h4v-5.5h4v5.5h4V10"/></svg>
+      </button>
+      <div class="stamp-card" id="stamps" role="img" aria-label="おきゃくさん"></div>
+      <button type="button" class="toy-btn" id="btn-sound" aria-label="おと">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="wave" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="slash" d="M15 9l6 6M21 9l-6 6"/></svg>
+      </button>
+    </div>
+
+    <!-- 演出（品物が飛ぶ・ハート・紙ふぶき） -->
+    <div class="fx" id="fx" aria-hidden="true"></div>
+
+    <!-- シャッター（開店・閉店） -->
+    <div class="shutter" id="shutter" aria-hidden="true"><div class="shutter-handle"></div></div>
+
+    <!-- タイトル：お店をえらぶ -->
+    <section class="overlay title" id="title">
+      <div class="title-sky" aria-hidden="true">
+        <div class="cloud cloud--a"></div>
+        <div class="cloud cloud--b"></div>
+      </div>
+      <div class="title-town" id="title-town" aria-hidden="true"></div>
+      <div class="title-inner">
+        <h1 class="logo" id="logo" aria-label="おみせやさんごっこ"></h1>
+        <div class="shops" id="shops"></div>
+      </div>
+      <button type="button" class="parent-btn" id="btn-settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8M18.5 18.5l-1.8-1.8M7.3 7.3 5.5 5.5"/></svg>
+        <span>おうちの方へ</span>
+      </button>
+    </section>
+
+    <!-- おうちの方向けの設定 -->
+    <section class="overlay settings" id="settings" hidden>
+      <div class="panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <h2 class="panel-title" id="settings-title">設定</h2>
+        <div class="setting">
+          <div class="setting-text">
+            <p class="setting-name">品物の数</p>
+            <p class="setting-note">棚にならべる数。はじめは 3〜4 がおすすめです</p>
+          </div>
+          <div class="seg" id="opt-size"></div>
+        </div>
+        <div class="setting">
+          <div class="setting-text">
+            <p class="setting-name">注文に絵を出す</p>
+            <p class="setting-note">オフにすると、吹き出しは名前だけになります</p>
+          </div>
+          <button type="button" class="switch" id="opt-picture" role="switch" aria-checked="true" aria-label="注文に絵を出す"><i></i></button>
+        </div>
+        <div class="setting">
+          <div class="setting-text"><p class="setting-name">読み上げ</p></div>
+          <button type="button" class="switch" id="opt-voice" role="switch" aria-checked="true" aria-label="読み上げ"><i></i></button>
+        </div>
+        <label class="setting" id="voice-pick" hidden>
+          <span class="setting-text"><span class="setting-name">声</span></span>
+          <select id="voice-select"></select>
+        </label>
+        <div class="setting">
+          <div class="setting-text"><p class="setting-name">効果音</p></div>
+          <button type="button" class="switch" id="opt-sound" role="switch" aria-checked="true" aria-label="効果音"><i></i></button>
+        </div>
+        <div class="setting">
+          <div class="setting-text"><p class="setting-name">音楽</p></div>
+          <button type="button" class="switch" id="opt-music" role="switch" aria-checked="true" aria-label="音楽"><i></i></button>
+        </div>
+        <button type="button" class="big-btn" id="btn-settings-close">とじる</button>
+      </div>
+    </section>
+
+    <!-- おしまい -->
+    <section class="overlay end" id="end" hidden>
+      <div class="end-card">
+        <p class="end-title">へいてん！</p>
+        <div class="stamp-card stamp-card--big" id="end-stamps"></div>
+        <div class="end-buttons">
+          <button type="button" class="round-btn" id="btn-again" aria-label="もういっかい">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M35 24a11 11 0 1 1-3.6-8.2" fill="none"/><path d="M33 8v9h-9"/></svg>
+          </button>
+          <button type="button" class="round-btn round-btn--home" id="btn-to-title" aria-label="おみせを えらぶ">
+            <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 23 24 10l16 13M13 20v17h8v-9h6v9h8V20" fill="none"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- おわるか確認 -->
+    <section class="overlay confirm" id="confirm" hidden>
+      <div class="end-card">
+        <p class="end-title end-title--small">おわりに する？</p>
+        <div class="end-buttons">
+          <button type="button" class="big-btn big-btn--quiet" id="btn-quit">おわる</button>
+          <button type="button" class="big-btn" id="btn-continue">つづける</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/items.js"></script>
+  <script src="js/shop.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/voice.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
