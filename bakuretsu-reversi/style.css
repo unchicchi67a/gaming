@@ -1,0 +1,1218 @@
+/*
+ * 爆裂リバーシ。見た目は reversi/ と同じで、爆発の演出（ファイル末尾）を足している。
+ *
+ * デザインの方針：「おもちゃのボードゲーム」
+ * - ぷっくりした立体ボタン（押すとへこむ）、トマト色の盤のふち、ぶ厚いコインのような石
+ * - 空色の水玉の背景、文字はネイビー（真っ黒は使わない）
+ * - 画面はスクロールさせず、盤をできるだけ大きく見せる
+ */
+:root {
+  --sky: #6ccbf4;
+  --sky-dot: rgba(255, 255, 255, 0.32);
+  --ink: #24315e;
+  --ink-soft: #5b6894;
+  --card: #ffffff;
+  --card-soft: #eef6fc;
+  --card-ledge: #c3d4e6;
+  --bar-off: #d6e2ef;
+  --sun: #ffc93c;
+  --sun-ledge: #dc9d00;
+  --tomato: #ff6b5b;
+  --tomato-ledge: #c9463a;
+  --leaf: #3cb55a;
+  --leaf-line: #2a8c43;
+  --star: #1c5a2c;
+  --hint: rgba(255, 236, 140, 0.9);
+  --last: #ff6b5b;
+  --focus: #24315e;
+  --tier-easy: #4cc56f;
+  --tier-normal: #3fa3f0;
+  --tier-hard: #ff9d2e;
+  --tier-max: #f2546b;
+  --overlay: rgba(36, 49, 94, 0.55);
+  --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-pop: "Mochiy Pop One", "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sky: #1e2b57;
+    --sky-dot: rgba(255, 255, 255, 0.07);
+    --ink: #f2f5ff;
+    --ink-soft: #b4bfe6;
+    --card: #2b3a6e;
+    --card-soft: #34467f;
+    --card-ledge: #18224a;
+    --bar-off: #45579a;
+    --sun-ledge: #a87700;
+    --tomato: #f0604f;
+    --tomato-ledge: #9c3329;
+    --leaf: #2f9e4c;
+    --leaf-line: #1f7536;
+    --star: #0f3a1b;
+    --focus: #ffc93c;
+    --overlay: rgba(8, 12, 30, 0.7);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  background-color: var(--sky);
+  background-image: radial-gradient(var(--sky-dot) 3px, transparent 3.5px);
+  background-size: 28px 28px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.55;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 画面全体を 1 画面（スクロールなし）として使う */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
+.screen {
+  flex: 1;
+  min-height: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 4px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ---------- 立体ボタン ---------- */
+
+.btn {
+  --ledge: var(--card-ledge);
+  appearance: none;
+  border: 0;
+  border-radius: 18px;
+  padding: 12px 20px 11px;
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 5px 0 var(--ledge);
+  transform: translateY(0);
+  transition: transform 0.08s, box-shadow 0.08s, opacity 0.15s;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--ledge);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  --ledge: var(--sun-ledge);
+  background: var(--sun);
+  color: #24315e;
+}
+
+/* ---------- 石（共通） ---------- */
+
+.mini {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border-radius: 50%;
+}
+
+.mini.black,
+.face.black {
+  background: radial-gradient(circle at 35% 28%, #5d6278 0, #2a2d3d 45%, #17192a 100%);
+}
+
+.mini.white,
+.face.white {
+  background: radial-gradient(circle at 35% 28%, #ffffff 0, #f4f6fb 50%, #d9dfeb 100%);
+}
+
+.mini.white {
+  box-shadow: inset 0 0 0 1.5px rgba(36, 49, 94, 0.25);
+}
+
+/* ---------- タイトル画面 ---------- */
+
+.title-screen {
+  display: flex;
+  overflow-x: hidden;
+  overflow-y: auto; /* 縮小しても収まらないときだけスクロール */
+}
+
+.title-inner {
+  width: 100%;
+  max-width: 440px;
+  margin: auto; /* 上下左右の中央に置く（はみ出すときは上から並ぶ） */
+  padding-bottom: 10px; /* カードの段差の影のぶん */
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 14px;
+}
+
+.hero-discs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  perspective: 400px;
+}
+
+.hero-disc {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  transform-style: preserve-3d;
+  animation: hero-flip 1.4s cubic-bezier(0.45, 0, 0.3, 1) 0.2s both;
+}
+
+.hero-disc:nth-child(2) {
+  transform: rotateY(180deg);
+  animation-name: hero-flip-back;
+  animation-delay: 0.45s;
+}
+
+.hero-disc .face,
+.disc .face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.22), 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+.hero-disc .face.white,
+.disc .face.white {
+  transform: rotateY(180deg);
+}
+
+/* タイトルで一度だけ、ぴょんと跳ねて裏返る */
+@keyframes hero-flip {
+  0% { transform: translateY(0) rotateY(180deg); }
+  45% { transform: translateY(-18px) rotateY(270deg); }
+  80% { transform: translateY(0) rotateY(360deg); }
+  90% { transform: translateY(-3px) rotateY(360deg); }
+  100% { transform: translateY(0) rotateY(360deg); }
+}
+
+@keyframes hero-flip-back {
+  0% { transform: translateY(0) rotateY(0deg); }
+  45% { transform: translateY(-18px) rotateY(90deg); }
+  80% { transform: translateY(0) rotateY(180deg); }
+  90% { transform: translateY(-3px) rotateY(180deg); }
+  100% { transform: translateY(0) rotateY(180deg); }
+}
+
+.logo {
+  margin: 6px 0 0;
+  font-family: var(--font-pop);
+  font-weight: 400;
+  font-size: clamp(2.4rem, 11vw, 3.2rem);
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  -webkit-text-stroke: 7px #24315e;
+  paint-order: stroke fill;
+  text-shadow: 0 5px 0 #24315e;
+}
+
+/* メニューは 1 枚のカード。中の部品は段差を付けず、平らに保つ */
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 18px 20px;
+  border-radius: 28px;
+  background: var(--card);
+  box-shadow: 0 8px 0 var(--card-ledge);
+}
+
+.row {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  transition: opacity 0.2s;
+}
+
+.row:disabled {
+  opacity: 0.35;
+}
+
+.row-label {
+  padding: 0;
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+}
+
+/* 2 択のスイッチ */
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--card-soft);
+}
+
+.seg label,
+.chip,
+.level-seg {
+  position: relative;
+  cursor: pointer;
+}
+
+.seg input,
+.chip input,
+.level-seg input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.row:disabled label,
+.row:disabled input {
+  cursor: not-allowed;
+}
+
+.seg label > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 1rem;
+  font-weight: 800;
+  transition: background-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.seg .mini {
+  font-size: 1.15rem;
+}
+
+.seg input:checked + span {
+  background: var(--sun);
+  color: #24315e;
+  box-shadow: 0 3px 0 var(--sun-ledge);
+}
+
+.seg input:focus-visible + span,
+.chip input:focus-visible + span,
+.level-seg input:focus-visible + .bar {
+  outline: 4px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* つよさ：− 数字 ＋ と、だんだん高くなる 10 本のバー */
+.level-picker {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--card-soft);
+  color: var(--ink);
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--card-ledge);
+  transition: transform 0.08s, box-shadow 0.08s, opacity 0.15s;
+}
+
+.step:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--card-ledge);
+}
+
+.step:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.level-readout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.level-big {
+  min-width: 1.4em;
+  font-family: var(--font-pop);
+  font-size: 2.8rem;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.level-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.level-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.tier-badge {
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--tier, var(--tier-easy));
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.level-meter {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  align-items: end;
+  gap: 5px;
+  height: 32px;
+  margin-top: 12px;
+}
+
+.level-seg {
+  --tier: var(--tier-easy);
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.level-seg[data-tier="normal"] { --tier: var(--tier-normal); }
+.level-seg[data-tier="hard"] { --tier: var(--tier-hard); }
+.level-seg[data-tier="max"] { --tier: var(--tier-max); }
+
+.level-seg .bar {
+  width: 100%;
+  height: calc(19% + var(--i) * 8.1%);
+  border-radius: 5px;
+  background: var(--bar-off);
+  transition: background-color 0.15s;
+}
+
+.level-seg.on .bar {
+  background: var(--tier);
+}
+
+.level-desc {
+  min-height: 3.2em; /* 説明が 1 行でも 2 行でも高さが変わらないように */
+  margin: 10px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ヒント・おとの ON/OFF */
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.chip > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  border-radius: 999px;
+  background: var(--card-soft);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.chip > span::before {
+  content: "";
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.chip input:checked + span {
+  background: #2f9e55;
+  color: #ffffff;
+}
+
+.chip input:checked + span::before {
+  content: "✓";
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #2f9e55;
+}
+
+.start-btn {
+  margin-top: 4px;
+  padding: 15px 20px 13px;
+  border-radius: 22px;
+  font-family: var(--font-pop);
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.08em;
+  box-shadow: 0 7px 0 var(--ledge);
+}
+
+.start-btn:active:not(:disabled) {
+  transform: translateY(6px);
+}
+
+/* 背の低い画面では、余白を詰めて縮小をなるべく少なくする */
+@media (max-height: 720px) {
+  .hero {
+    padding-bottom: 10px;
+  }
+  .hero-discs {
+    height: 34px;
+  }
+  .hero-disc {
+    width: 30px;
+    height: 30px;
+  }
+  .logo {
+    font-size: 2.3rem;
+  }
+  .menu {
+    gap: 12px;
+    padding: 14px 16px 16px;
+  }
+  .seg label > span {
+    min-height: 38px;
+  }
+  .level-big {
+    font-size: 2.4rem;
+  }
+  .start-btn {
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+}
+
+/* ---------- 対局画面 ---------- */
+
+.game-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+.scoreboard,
+.bubble,
+.controls {
+  flex: none;
+}
+
+/* 残りの高さと幅をすべて盤に使う。盤は正方形のまま、入るいちばん大きいサイズにする */
+.board-wrap {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  container-type: size;
+}
+
+.tray {
+  width: min(100cqw, 100cqh - 10px); /* 10px は盤の段差の影のぶん */
+  aspect-ratio: 1;
+  margin-bottom: 10px;
+}
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px 8px 8px;
+  border-radius: 22px;
+  background: var(--card);
+  border: 3px solid transparent;
+  box-shadow: 0 5px 0 var(--card-ledge);
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+/* 手番のプレイヤーは、ふちが太くなって少し浮く */
+.player.active {
+  border-color: #24315e;
+  background: #fff4cc;
+  color: #24315e;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 var(--sun-ledge);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--card-soft);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.player.active .avatar {
+  background: #ffffff;
+}
+
+.avatar .mini {
+  font-size: 1.9rem;
+}
+
+.player-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.who {
+  overflow: hidden;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-pop);
+  font-size: 1.7rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.count .mini {
+  font-size: 0.7em;
+}
+
+.vs {
+  font-size: 0.85rem;
+  color: #24315e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .vs {
+    color: var(--ink);
+  }
+}
+
+/* 対戦相手のセリフ */
+.bubble {
+  position: relative;
+  margin: 14px 0 12px;
+  padding: 10px 16px;
+  border-radius: 18px;
+  background: var(--card);
+  text-align: center;
+  font-size: 1rem;
+  box-shadow: 0 4px 0 var(--card-ledge);
+}
+
+.bubble::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: var(--tail, 25%);
+  width: 18px;
+  height: 18px;
+  background: var(--card);
+  border-radius: 3px;
+  transform: translateX(-50%) rotate(45deg);
+  transition: left 0.25s;
+}
+
+.bubble.from-white {
+  --tail: 75%;
+}
+
+.dots::after {
+  content: "";
+  display: inline-block;
+  width: 1.5em;
+  text-align: left;
+  animation: dots 1.2s steps(4) infinite;
+}
+
+@keyframes dots {
+  0% { content: ""; }
+  25% { content: "・"; }
+  50% { content: "・・"; }
+  75% { content: "・・・"; }
+}
+
+.board-wrap {
+  position: relative;
+}
+
+/* おもちゃの盤：トマト色のふちに、ぷっくりした段差 */
+.tray {
+  padding: 12px;
+  border-radius: 30px;
+  background: var(--tomato);
+  box-shadow:
+    inset 0 4px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -5px 0 rgba(0, 0, 0, 0.12),
+    0 8px 0 var(--tomato-ledge);
+}
+
+.board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 3px;
+  border-radius: 16px;
+  background: var(--leaf-line);
+  box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.18);
+  user-select: none;
+  overflow: hidden;
+}
+
+/* 星（盤面の 4 か所の点）。2 マス目と 3 マス目、6 マス目と 7 マス目の境目の交点 */
+.star-points {
+  position: absolute;
+  z-index: 2;
+  inset: 3px; /* .board の padding と合わせる */
+  pointer-events: none;
+}
+
+.star-points span {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--star);
+  transform: translate(-50%, -50%);
+}
+
+.star-points span:nth-child(1) { left: 25%; top: 25%; }
+.star-points span:nth-child(2) { left: 75%; top: 25%; }
+.star-points span:nth-child(3) { left: 25%; top: 75%; }
+.star-points span:nth-child(4) { left: 75%; top: 75%; }
+
+.cell {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--leaf);
+  cursor: default;
+  appearance: none;
+  perspective: 500px;
+}
+
+.cell:nth-child(1) { border-top-left-radius: 13px; }
+.cell:nth-child(8) { border-top-right-radius: 13px; }
+.cell:nth-child(57) { border-bottom-left-radius: 13px; }
+.cell:nth-child(64) { border-bottom-right-radius: 13px; }
+
+.cell.hint {
+  cursor: pointer;
+}
+
+.cell.hint::before {
+  content: "";
+  position: absolute;
+  inset: 34%;
+  border-radius: 50%;
+  background: var(--hint);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+  transition: inset 0.12s;
+}
+
+.cell.hint:hover::before {
+  inset: 26%;
+}
+
+.cell.last::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  width: 22%;
+  height: 22%;
+  border-radius: 50%;
+  background: var(--last);
+  border: 2px solid #ffffff;
+  transform: translate(-50%, -60%);
+}
+
+.disc-wrap {
+  position: absolute;
+  z-index: 1;
+  inset: 8% 8% 12%;
+}
+
+.disc-wrap.empty {
+  display: none;
+}
+
+.disc-wrap.pop {
+  animation: pop 0.3s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes pop {
+  0% { transform: translateY(-30%) scale(0.6); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.disc {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.42s cubic-bezier(0.4, 0.1, 0.3, 1);
+}
+
+.disc.is-white {
+  transform: rotateY(180deg);
+}
+
+.board.instant .disc {
+  transition: none;
+}
+
+.toast {
+  position: absolute;
+  z-index: 5;
+  top: 50%;
+  left: 50%;
+  max-width: 88%;
+  padding: 14px 22px;
+  border-radius: 20px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 6px 0 var(--card-ledge);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: toast-in 0.3s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+@keyframes toast-in {
+  from { transform: translate(-50%, -50%) scale(0.7); opacity: 0; }
+  to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  padding-bottom: 5px; /* ボタンの段差の影のぶん */
+}
+
+.controls .btn {
+  flex: 1 1 0;
+}
+
+/* 背の低い画面では、上下の部品を詰めて盤を大きく取る */
+@media (max-height: 640px) {
+  .app {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+  .player {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .avatar {
+    width: 34px;
+    height: 34px;
+  }
+  .avatar .mini {
+    font-size: 1.5rem;
+  }
+  .count {
+    font-size: 1.4rem;
+  }
+  .bubble {
+    margin: 10px 0 8px;
+    padding: 6px 14px;
+  }
+  .controls .btn {
+    padding-top: 9px;
+    padding-bottom: 8px;
+  }
+}
+
+/* ---------- 横長の画面（PC・タブレット横向き・スマホ横向き） ---------- */
+
+@media (min-aspect-ratio: 5/4) and (min-width: 640px) {
+  .app {
+    max-width: 1500px;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  /* タイトル：左に大きなロゴ、右にメニュー */
+  .title-inner {
+    display: grid;
+    grid-template-columns: 1fr minmax(360px, 440px);
+    align-items: center;
+    gap: 40px;
+    max-width: 980px;
+  }
+  .hero {
+    padding-bottom: 0;
+  }
+  .hero-discs {
+    height: 76px;
+    gap: 12px;
+  }
+  .hero-disc {
+    width: 68px;
+    height: 68px;
+  }
+  .hero .hero-boom { /* 後ろの基本スタイルより優先させる */
+    font-size: 48px;
+  }
+  .logo {
+    margin-top: 14px;
+    font-size: clamp(3rem, 7vw, 5rem);
+    -webkit-text-stroke-width: 9px;
+    text-shadow: 0 7px 0 #24315e;
+  }
+
+  /* 対局：左に石の数・セリフ・ボタン、右に盤。全体を画面の中央に寄せる */
+  .game-screen {
+    --side: clamp(250px, 30vw, 340px);
+    display: grid;
+    width: 100%;
+    max-width: calc(var(--side) + 28px + 100dvh - 24px);
+    margin: 0 auto;
+    grid-template-columns: var(--side) 1fr;
+    grid-template-rows: 1fr auto auto auto 1fr;
+    grid-template-areas:
+      ". board"
+      "score board"
+      "bubble board"
+      "controls board"
+      ". board";
+    column-gap: 28px;
+  }
+  .scoreboard { grid-area: score; }
+  .bubble { grid-area: bubble; }
+  .controls { grid-area: controls; flex-direction: column; }
+  .board-wrap { grid-area: board; height: 100%; justify-items: end; }
+  .bubble::before { display: none; }
+  .scoreboard {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .vs {
+    display: none;
+  }
+  .player {
+    padding: 8px 12px 8px 8px;
+  }
+  .controls .btn {
+    flex: none;
+  }
+}
+
+/* ---------- 結果 ---------- */
+
+.result {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: hidden;
+  background: var(--overlay);
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.result-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 340px);
+  padding: 46px 20px 22px;
+  border-radius: 28px;
+  background: var(--card);
+  box-shadow: 0 8px 0 var(--card-ledge);
+  text-align: center;
+  animation: card-in 0.4s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+@keyframes card-in {
+  from { transform: scale(0.8) translateY(20px); }
+  to { transform: scale(1) translateY(0); }
+}
+
+.result-avatar {
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--sun);
+  font-size: 2.6rem;
+  line-height: 1;
+  box-shadow: 0 5px 0 var(--sun-ledge);
+  transform: translateX(-50%);
+}
+
+.result-avatar .mini {
+  font-size: 2.8rem;
+}
+
+.result-card h2 {
+  margin: 0 0 4px;
+  white-space: pre-line;
+  font-family: var(--font-pop);
+  font-weight: 400;
+  font-size: 1.7rem;
+  line-height: 1.3;
+}
+
+.result-score {
+  margin: 0 0 18px;
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 勝ったときだけ紙ふぶき */
+.confetti span {
+  position: absolute;
+  top: -20px;
+  width: 10px;
+  height: 14px;
+  border-radius: 3px;
+  animation: fall linear forwards;
+}
+
+@keyframes fall {
+  to { transform: translateY(110vh) rotate(720deg); }
+}
+
+/* ---------- 爆裂リバーシの追加分 ---------- */
+
+.hero-boom {
+  align-self: center;
+  font-size: 30px;
+  line-height: 1;
+  animation: boom-pulse 1.6s ease-in-out 0.6s infinite;
+}
+
+@keyframes boom-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.25) rotate(-8deg); }
+}
+
+.logo-sub {
+  display: block;
+  font-size: 0.55em;
+  letter-spacing: 0.12em;
+  color: var(--sun);
+}
+
+.rule-note {
+  margin: 12px 0 0;
+  padding: 8px 16px;
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 4px 0 var(--card-ledge);
+}
+
+/* 爆発：置いたマスを中心に、まわり 8 マスぶん（3x3）に広がる光と輪 */
+.blast-fx {
+  position: absolute;
+  z-index: 4;
+  width: 37.5%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.blast-fx::before,
+.blast-fx::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.blast-fx::before {
+  background: radial-gradient(circle, #fffbe0 0%, #ffd23c 30%, rgba(255, 120, 40, 0.85) 55%, rgba(255, 80, 40, 0) 72%);
+  animation: blast-flash 0.65s ease-out forwards;
+}
+
+.blast-fx::after {
+  border: 5px solid #ffffff;
+  animation: blast-ring 0.65s ease-out forwards;
+}
+
+@keyframes blast-flash {
+  0% { transform: scale(0.2); opacity: 1; }
+  40% { transform: scale(1.05); opacity: 0.95; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+@keyframes blast-ring {
+  0% { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* 爆風を受けたマスが一瞬光る */
+.cell.blasted {
+  animation: cell-hit 0.5s ease-out;
+}
+
+@keyframes cell-hit {
+  0% { background: #ffe58a; }
+  100% { background: var(--leaf); }
+}
+
+.tray.shake {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-6px, 3px); }
+  40% { transform: translate(5px, -4px); }
+  60% { transform: translate(-4px, 2px); }
+  80% { transform: translate(3px, -1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-disc,
+  .hero-boom,
+  .tray.shake,
+  .cell.blasted,
+  .disc-wrap.pop,
+  .toast,
+  .result,
+  .result-card {
+    animation: none;
+  }
+  .dots::after {
+    animation: none;
+    content: "…";
+  }
+  .disc {
+    transition: none;
+  }
+  .confetti {
+    display: none;
+  }
+  .blast-fx::after {
+    display: none;
+  }
+}

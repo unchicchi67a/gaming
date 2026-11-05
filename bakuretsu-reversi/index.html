@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#6ccbf4">
+  <meta name="description" content="置くと周りの8マスが爆風でひっくり返る、ちょっと変わったリバーシ">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>爆裂リバーシ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Mochiy+Pop+One&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <!-- タイトル（メニュー）画面 -->
+    <section id="title-screen" class="screen title-screen">
+      <div class="title-inner" id="title-inner">
+        <header class="hero">
+          <div class="hero-discs" aria-hidden="true">
+            <span class="hero-disc"><span class="face black"></span><span class="face white"></span></span>
+            <span class="hero-boom">💥</span>
+            <span class="hero-disc"><span class="face black"></span><span class="face white"></span></span>
+          </div>
+          <h1 class="logo"><span class="logo-sub">ばくれつ</span>リバーシ</h1>
+          <p class="rule-note">おくと まわりの 8マスが<br>ばくはつで ひっくりかえる！</p>
+        </header>
+
+        <form id="menu" class="menu">
+          <fieldset class="row">
+            <legend class="row-label">だれと あそぶ？</legend>
+            <div class="seg">
+              <label><input type="radio" name="mode" value="cpu"><span>CPUと</span></label>
+              <label><input type="radio" name="mode" value="pvp"><span>ふたりで</span></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="row" id="level-field">
+            <legend class="row-label">CPUの つよさ</legend>
+            <div class="level-picker">
+              <button type="button" class="step" id="level-down" aria-label="よわくする">−</button>
+              <div class="level-readout" aria-live="polite">
+                <span class="level-big" id="level-num"></span>
+                <span class="level-meta">
+                  <span class="level-name" id="level-name"></span>
+                  <span class="tier-badge" id="level-tier"></span>
+                </span>
+              </div>
+              <button type="button" class="step" id="level-up" aria-label="つよくする">＋</button>
+            </div>
+            <div class="level-meter" id="level-grid"></div>
+            <p class="level-desc" id="level-desc"></p>
+          </fieldset>
+
+          <fieldset class="row" id="side-field">
+            <legend class="row-label">どっちから うつ？</legend>
+            <div class="seg">
+              <label><input type="radio" name="side" value="black"><span><span class="mini black" aria-hidden="true"></span>さきに うつ</span></label>
+              <label><input type="radio" name="side" value="white"><span><span class="mini white" aria-hidden="true"></span>あとから うつ</span></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="row options">
+            <legend class="visually-hidden">せってい</legend>
+            <label class="chip"><input type="checkbox" name="hints"><span>ヒントを だす</span></label>
+            <label class="chip"><input type="checkbox" name="sound"><span>おとを ならす</span></label>
+          </fieldset>
+
+          <button type="submit" class="btn primary start-btn">はじめる！</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 対局画面 -->
+    <section id="game-screen" class="screen game-screen" hidden>
+      <header class="scoreboard" aria-label="いしの かず">
+        <div class="player" id="player-black">
+          <span class="avatar" id="avatar-black" aria-hidden="true"></span>
+          <span class="player-text">
+            <span class="who" id="name-black"></span>
+            <span class="count" id="count-black">2</span>
+          </span>
+        </div>
+        <span class="vs" aria-hidden="true">たい</span>
+        <div class="player" id="player-white">
+          <span class="avatar" id="avatar-white" aria-hidden="true"></span>
+          <span class="player-text">
+            <span class="who" id="name-white"></span>
+            <span class="count" id="count-white">2</span>
+          </span>
+        </div>
+      </header>
+
+      <p class="bubble" id="status" aria-live="polite"></p>
+
+      <div class="board-wrap">
+        <div class="tray" id="tray">
+          <div class="board" id="board" role="grid" aria-label="ばんめん"></div>
+        </div>
+        <div class="toast" id="toast" role="status" hidden></div>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="btn" id="undo-btn"><span aria-hidden="true">↶</span> いって もどる</button>
+        <button type="button" class="btn" id="title-btn">タイトルへ</button>
+      </div>
+
+      <div class="result" id="result" hidden>
+        <div class="confetti" id="confetti" aria-hidden="true"></div>
+        <div class="result-card" role="dialog" aria-labelledby="result-title">
+          <span class="result-avatar" id="result-avatar" aria-hidden="true"></span>
+          <h2 id="result-title"></h2>
+          <p class="result-score" id="result-score"></p>
+          <div class="result-actions">
+            <button type="button" class="btn primary" id="again-btn">もういっかい</button>
+            <button type="button" class="btn" id="view-btn">ばんめんを みる</button>
+            <button type="button" class="btn" id="result-title-btn">タイトルへ</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/engine.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/fullscreen.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

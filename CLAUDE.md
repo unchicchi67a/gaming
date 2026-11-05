@@ -12,6 +12,12 @@
   - `index.html` を直接ブラウザで開いて動作させる（`file://` でも動くよう、ES Modules は使わず通常の `<script>` で読み込む）
   - ルールは `js/engine.js`、CPU は `js/ai.js`。どちらもブラウザと Node.js の両方から読み込める形式にしている
   - テスト：`node --test reversi/tests/reversi.test.js`
+- `bakuretsu-reversi/`：爆裂リバーシ（置くとまわり8マスの石が色に関係なく裏返るリバーシ）。`reversi/` をもとにしている
+  - ルール：打てるマスは通常どおり（はさめるマスだけ）→ はさんだ石を裏返す → 打ったマスのまわり8マスの石をすべて裏返す（はさんだばかりの隣の石も元に戻る）
+  - 見た目と CPU のしくみは `reversi/` と同じ。`js/engine.js` の `applyMove` は `{ flips, blast }`（打てなければ `null`）を返し、`undoMove` に渡して取り消す
+  - 画面では「はさむ → 爆発」の2段階で見せる。アニメーション中は次の手を受け付けない
+  - 設定の保存先は `bakuretsu-reversi.settings.v1`（`reversi/` とは別）
+  - テスト：`node --test bakuretsu-reversi/tests/bakuretsu.test.js`
 - `three-little-pigs/`：3歳向けの絵本ゲーム「3びきのこぶた」（ビルド不要の HTML / CSS / JavaScript）
   - リバーシと同じく `index.html` を直接開いて動かす。ES Modules は使わず通常の `<script>` で読み込む
   - 物語の進行は `js/story.js`、息の「ふーっ」判定は `js/breath.js`。どちらも画面に触れない純粋なロジックで、ブラウザと Node.js の両方から読み込める
