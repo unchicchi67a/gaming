@@ -35,8 +35,13 @@ gaming/
 ├── index.html       ゲームを選ぶトップページ（GitHub Pages の入口）
 ├── reversi/         リバーシ
 ├── three-little-pigs/ 3びきのこぶた
-└── omiseyasan/      おみせやさんごっこ
+├── omiseyasan/      おみせやさんごっこ
+└── tools/voicevox/  VOICEVOX でせりふの音声ファイルをつくるスクリプト
 ```
+
+## 音声
+
+「3びきのこぶた」と「おみせやさんごっこ」の読み上げの声は、VOICEVOX:冥鳴ひまり です。音声ファイルのつくり方は [`tools/voicevox/README.md`](tools/voicevox/README.md) を見てください。
 
 ## ゲームを追加するとき
 
@@ -44,3 +49,4 @@ gaming/
 2. フォルダの中に、遊び方・機能・テストの実行方法を書いた `README.md` を置く
 3. この README の「ゲーム一覧」と「フォルダ構成」に追加する
 4. ルートの `index.html` にゲームへのリンクを追加する
+5. 読み上げを VOICEVOX の音声にする場合は、`tools/voicevox/games.js` にゲームを追加して音声ファイルをつくる

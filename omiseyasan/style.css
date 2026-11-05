@@ -920,6 +920,7 @@ button {
 .setting-text { display: block; min-width: 0; }
 .setting-name { display: block; margin: 0; font-size: 16px; font-weight: 800; }
 .setting-note { margin: 2px 0 0; font-size: 13px; color: var(--ink-soft); }
+.setting-note.credit { margin: 14px 0 0; text-align: center; font-size: 12px; }
 
 .setting select {
   max-width: 60%;

@@ -426,8 +426,8 @@
   }
 
   const THANKS = [
-    (n) => `わあい、 ${n}！ ありがとう！`,
-    (n) => `${n}、 ありがとう！ うれしいな！`,
+    (name) => `わあい、 ${name}！ ありがとう！`,
+    (name) => `${name}、 ありがとう！ うれしいな！`,
     () => 'これこれ！ ありがとう！',
   ];
 
@@ -669,8 +669,9 @@
 
   function updateVoiceUI() {
     const names = Voice.voices;
-    voicePick.hidden = names.length === 0 || !settings.voice;
-    const auto = '<option value="">おまかせ</option>';
+    voicePick.hidden = (names.length === 0 && !Voice.recorded) || !settings.voice;
+    // 空の値は VOICEVOX の音声（ないときは端末のいちばん自然な声）
+    const auto = `<option value="">${Voice.recorded ? '冥鳴ひまり（VOICEVOX）' : 'おまかせ'}</option>`;
     voiceSelect.innerHTML = auto + names.map((n) => {
       const label = n.replace(/^Microsoft\s+/i, '').replace(/\s*-\s*Japanese \(Japan\)/i, '');
       return `<option value="${n.replace(/"/g, '&quot;')}">${label.replace(/</g, '&lt;')}</option>`;

@@ -29,6 +29,12 @@
   - お金のやりとりはまだ実装しない（ユーザーの希望）
   - `?shop=<お店の id>` でタイトルをとばして始められる（動作確認用）
   - テスト：`node --test omiseyasan/tests/shop.test.js`
+- `tools/voicevox/`：「3びきのこぶた」と「おみせやさんごっこ」のせりふの音声を VOICEVOX でつくるスクリプト（Node.js）
+  - 声はすべて「冥鳴ひまり」（ユーザーの希望）。クレジット「VOICEVOX:冥鳴ひまり」を画面と README に必ず書くこと
+  - せりふは各ゲームの `js/main.js` の文字列から自動で集める（`lines.js`）。ひらがな・カタカナだけの文字列がせりふとみなされる。`${…}` の展開候補は `games.js` の `placeholders` で決める
+  - 出力は `<ゲーム>/voice/*.mp3` と対応表 `<ゲーム>/js/voice-lines.js`。各ゲームの `voice.js` は対応表にあれば MP3 を再生し、なければ Web Speech API で読み上げる
+  - せりふを足したり変えたりしたら、VOICEVOX Engine を起動して `node tools/voicevox/generate.js` を実行し、音声ファイルもいっしょにコミットすること（各ゲームのテストが音声のないせりふを検出する）
+  - 読みまちがいは `generate.js` の `READING` / `KANA` で直す。`--kana` で読みを確認できる
 
 ## ペルソナ
 

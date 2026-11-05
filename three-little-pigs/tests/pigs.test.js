@@ -233,3 +233,21 @@ test('rms は波形の音量を返す', () => {
   assert.equal(Breath.rms([1, -1, 1, -1]), 1);
   assert.ok(Math.abs(Breath.rms([0.5, -0.5]) - 0.5) < 1e-12);
 });
+
+// ------------------------------------------------------------ VOICEVOX の音声
+
+test('読み上げるせりふすべてに、VOICEVOX の音声ファイルがある', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { collectLines } = require('../../tools/voicevox/lines.js');
+  const GAMES = require('../../tools/voicevox/games.js');
+  const VoiceLines = require('../js/voice-lines.js');
+  const lines = collectLines(GAMES['three-little-pigs']);
+  assert.ok(lines.length > 0);
+  const missing = lines.filter((t) => !VoiceLines.files[t]);
+  assert.deepEqual(missing, [], '音声がないせりふがあります。node tools/voicevox/generate.js three-little-pigs を実行してください');
+  for (const file of Object.values(VoiceLines.files)) {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', VoiceLines.base, file)), `音声ファイルがありません: ${file}`);
+  }
+  assert.equal(VoiceLines.credit, 'VOICEVOX:冥鳴ひまり');
+});

@@ -173,3 +173,21 @@ test('状態は書きかえられない', () => {
   assert.ok(Object.isFrozen(s0.shelf));
   assert.ok(Object.isFrozen(s0.orders[0]));
 });
+
+// ------------------------------------------------------------ VOICEVOX の音声
+
+test('読み上げるせりふすべてに、VOICEVOX の音声ファイルがある', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const { collectLines } = require('../../tools/voicevox/lines.js');
+  const GAMES = require('../../tools/voicevox/games.js');
+  const VoiceLines = require('../js/voice-lines.js');
+  const lines = collectLines(GAMES['omiseyasan']);
+  assert.ok(lines.length > 0);
+  const missing = lines.filter((t) => !VoiceLines.files[t]);
+  assert.deepEqual(missing, [], '音声がないせりふがあります。node tools/voicevox/generate.js omiseyasan を実行してください');
+  for (const file of Object.values(VoiceLines.files)) {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', VoiceLines.base, file)), `音声ファイルがありません: ${file}`);
+  }
+  assert.equal(VoiceLines.credit, 'VOICEVOX:冥鳴ひまり');
+});

@@ -1,7 +1,12 @@
 /**
- * 語りとせりふの読み上げ。ブラウザの音声合成（Web Speech API）を使う。
+ * 語りとせりふの読み上げ。
  *
- * 声の質は端末に入っている音声で決まるため、自然に聞こえる声（ニューラル音声）を優先して選ぶ。
+ * ふだんは VOICEVOX（冥鳴ひまり）であらかじめつくった音声ファイル（voice/*.mp3）を再生する。
+ * せりふと音声ファイルの対応は js/voice-lines.js（tools/voicevox/generate.js が自動でつくる）。
+ * 対応表にないせりふ・再生できなかったとき・設定で端末の声を選んだときは、
+ * ブラウザの音声合成（Web Speech API）で読み上げる。
+ *
+ * 端末の声の質は端末に入っている音声で決まるため、自然に聞こえる声（ニューラル音声）を優先して選ぶ。
  *   - Edge：Microsoft Nanami / Keita など「Online (Natural)」の声
  *   - Chrome：Google 日本語
  *   - iPhone / iPad / Mac：Kyoko・O-ren などの「拡張」「プレミアム」の声
@@ -30,6 +35,55 @@
   let preferredName = '';
   let current = null;
   const listeners = [];
+
+  /** VOICEVOX でつくった音声の対応表。端末の声を選んでいない（preferredName が空の）ときに使う。 */
+  const LINES = root.PigsVoiceLines || null;
+  const canPlayFile = typeof root.Audio === 'function';
+  let audio = null;
+
+  function recordedFile(text) {
+    if (preferredName || !LINES || !canPlayFile) return null;
+    return LINES.files[speakable(text)] || null;
+  }
+
+  /**
+   * 音声ファイルを再生し、終わったら解決する Promise を返す。
+   * 再生できなかったときは fallback()（端末の声での読み上げ）に切りかえる。
+   */
+  function playFile(file, text, fallback) {
+    if (!audio) audio = new root.Audio();
+    const el = audio;
+    return new Promise((resolve) => {
+      let done = false;
+      const end = () => {
+        clearTimeout(timer);
+        el.onended = null;
+        el.onerror = null;
+      };
+      const finish = () => {
+        if (done) return;
+        done = true;
+        end();
+        resolve();
+      };
+      const fail = () => {
+        if (done) return;
+        done = true;
+        end();
+        fallback().then(resolve);
+      };
+      el.onended = finish;
+      el.onerror = fail;
+      el.muted = false;
+      el.src = LINES.base + file;
+      // ended が届かない端末があるので、長めの待ち時間で打ち切る
+      const timer = setTimeout(finish, text.length * 350 + 5000);
+      current = { cancel() { el.pause(); finish(); } };
+      let p;
+      try { p = el.play(); } catch (e) { fail(); return; }
+      if (p && typeof p.catch === 'function') p.catch(fail);
+    });
+  }
 
   const isJa = (v) => /^ja([-_]|$)/i.test(v.lang);
 
@@ -71,7 +125,11 @@
   }
 
   const Voice = {
-    get available() { return !!(synth && chosen); },
+    get available() { return Voice.recorded || !!(synth && chosen); },
+    /** VOICEVOX でつくった音声を使えるか。 */
+    get recorded() { return !!(LINES && canPlayFile); },
+    /** 音声のクレジット表記。 */
+    get credit() { return LINES ? LINES.credit : ''; },
     get enabled() { return enabled; },
     /** 選べる日本語の声（自然な順）。 */
     get voices() { return voices.map((v) => v.name); },
@@ -80,7 +138,10 @@
       enabled = !!v;
       if (!enabled) Voice.cancel();
     },
-    /** 声を名前で選ぶ。空文字ならいちばん自然な声を自動で選ぶ。 */
+    /**
+     * 声を名前で選ぶ。空文字なら VOICEVOX の音声を使う
+     * （対応表にないせりふは、端末のいちばん自然な声で読み上げる）。
+     */
     setVoice(name) {
       preferredName = name || '';
       refresh();
@@ -89,6 +150,19 @@
 
     /** iOS などでは最初の読み上げをユーザー操作の中で行う必要があるため、操作時に呼ぶ。 */
     unlock() {
+      if (enabled && Voice.recorded && !audio) {
+        // iOS などでは、操作の中で一度再生した audio 要素でないと後から鳴らせないため、消音で一度再生しておく
+        audio = new root.Audio();
+        const first = Object.values(LINES.files)[0];
+        if (first) {
+          audio.muted = true;
+          audio.src = LINES.base + first;
+          try {
+            const p = audio.play();
+            if (p && typeof p.then === 'function') p.then(() => { if (audio.muted) audio.pause(); }, () => {});
+          } catch (e) { /* 再生できなくても、端末の声で遊べる */ }
+        }
+      }
       if (!synth || !enabled) return;
       refresh();
       try {
@@ -100,6 +174,13 @@
 
     /** 読み終わったら（または待ち時間が過ぎたら）解決する Promise を返す。 */
     say(text, speaker) {
+      const file = enabled ? recordedFile(text) : null;
+      if (file) return playFile(file, text, () => Voice.speakWithDevice(text, speaker));
+      return Voice.speakWithDevice(text, speaker);
+    },
+
+    /** 端末の声（Web Speech API）で読み上げる。声がないときは文字の長さに応じて待つだけ。 */
+    speakWithDevice(text, speaker) {
       if (!synth || !enabled || !chosen) {
         return new Promise((resolve) => {
           current = { cancel: resolve };
@@ -131,6 +212,7 @@
 
     cancel() {
       if (synth) synth.cancel();
+      if (audio) audio.pause();
       if (current) current.cancel();
       current = null;
     },
