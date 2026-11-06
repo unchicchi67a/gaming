@@ -19,8 +19,8 @@ function seeded(seed) {
   };
 }
 
-/** 2 つの思考関数で 1 局打ち、最終盤面を返す。 */
-function playGame(chooseBlack, chooseWhite) {
+/** 2 つの思考関数で 1 局打ち、最終盤面を返す。chain が true なら連鎖爆裂ルールで打つ。 */
+function playGame(chooseBlack, chooseWhite, chain) {
   const b = E.createBoard();
   let turn = BLACK;
   let passes = 0;
@@ -32,7 +32,7 @@ function playGame(chooseBlack, chooseWhite) {
       passes++;
     } else {
       assert.ok(E.isLegal(b, move, turn), '合法手を返す');
-      E.applyMove(b, move, turn);
+      E.applyMove(b, move, turn, chain);
       passes = 0;
       plies++;
     }
@@ -156,6 +156,105 @@ test('ランダムな対局で、着手と取り消しを繰り返しても盤�
       assert.deepEqual(b, before);
     }
     assert.deepEqual(b, E.createBoard());
+  }
+});
+
+test('連鎖爆裂：爆風で裏返った石がはさんだ石も、段階ごとに続けて裏返る', () => {
+  // 黒が (4,4) に打つ。(4,5) の白をはさみ、爆風で (4,5) は白に戻り、(3,4) の白が黒になる。
+  // 黒になった (3,4) が右上の (2,5) の白を (1,6) の黒ではさむ → 1 段目で (2,5) が黒に。
+  // 黒になった (2,5) が上の (1,5) の白を (0,5) の黒ではさむ → 2 段目で (1,5) が黒に。
+  const stones = {
+    '4,5': WHITE,
+    '4,6': BLACK,
+    '3,4': WHITE,
+    '2,5': WHITE,
+    '1,6': BLACK,
+    '1,5': WHITE,
+    '0,5': BLACK,
+  };
+
+  const plain = boardWith(stones);
+  const plainMove = E.applyMove(plain, toPos(4, 4), BLACK);
+  assert.deepEqual(plainMove.chain, [], '連鎖なしのルールでは連鎖しない');
+  assert.equal(plain[toPos(2, 5)], WHITE);
+
+  const b = boardWith(stones);
+  const before = E.cloneBoard(b);
+  const move = E.applyMove(b, toPos(4, 4), BLACK, true);
+  assert.deepEqual(move.flips, [toPos(4, 5)]);
+  assert.deepEqual(move.blast.sort(byPos), [toPos(3, 4), toPos(4, 5)]);
+  assert.deepEqual(move.chain, [[toPos(2, 5)], [toPos(1, 5)]]);
+  assert.equal(b[toPos(3, 4)], BLACK, '爆風で黒に');
+  assert.equal(b[toPos(2, 5)], BLACK, '1 段目の連鎖で黒に');
+  assert.equal(b[toPos(1, 5)], BLACK, '2 段目の連鎖で黒に');
+  assert.equal(b[toPos(4, 5)], WHITE, 'はさんだ石は爆風で白に戻ったまま');
+  E.undoMove(b, toPos(4, 4), BLACK, move);
+  assert.deepEqual(b, before);
+});
+
+test('連鎖爆裂：爆風で白になった石は、白として黒の石をはさむ', () => {
+  // 黒が (4,4) に打つ（下の (5,4) の白をはさむ）。爆風で (4,3) の黒が白になり、
+  // 左の (4,2) の黒を (4,1) の白ではさむ
+  const b = boardWith({ '5,4': WHITE, '6,4': BLACK, '4,3': BLACK, '4,2': BLACK, '4,1': WHITE });
+  const move = E.applyMove(b, toPos(4, 4), BLACK, true);
+  assert.deepEqual(move.chain, [[toPos(4, 2)]]);
+  assert.equal(b[toPos(4, 3)], WHITE);
+  assert.equal(b[toPos(4, 2)], WHITE);
+  assert.equal(b[toPos(4, 4)], BLACK);
+});
+
+test('連鎖爆裂：打った石も、連鎖ではさまれれば裏返る', () => {
+  // 黒が (4,4) に打つ。爆風で (4,3) の黒と (4,5) の黒（はさんだ石）が白になり、
+  // 白になった (4,3) と (4,5) が、あいだの (4,4) の黒をはさむ
+  const b = boardWith({ '4,5': WHITE, '4,6': BLACK, '4,3': BLACK });
+  const move = E.applyMove(b, toPos(4, 4), BLACK, true);
+  assert.deepEqual(move.chain, [[toPos(4, 4)]]);
+  assert.equal(b[toPos(4, 4)], WHITE);
+  const before = boardWith({ '4,5': WHITE, '4,6': BLACK, '4,3': BLACK });
+  E.undoMove(b, toPos(4, 4), BLACK, move);
+  assert.deepEqual(b, before);
+});
+
+test('連鎖爆裂：ランダムな対局で、連鎖で裏返る石は 1 手に 1 回だけ、取り消すと元に戻る', () => {
+  const rand = seeded(7);
+  let chained = 0;
+  for (let g = 0; g < 30; g++) {
+    const b = E.createBoard();
+    const stack = [];
+    let turn = BLACK;
+    let passes = 0;
+    while (passes < 2) {
+      const moves = E.legalMoves(b, turn);
+      if (moves.length === 0) {
+        passes++;
+      } else {
+        const m = moves[Math.floor(rand() * moves.length)];
+        const before = E.cloneBoard(b);
+        const move = E.applyMove(b, m, turn, true);
+        const all = move.chain.flat();
+        assert.equal(new Set(all).size, all.length, '同じ石は連鎖で 2 回裏返らない');
+        for (const q of all) assert.ok(b[q] === BLACK || b[q] === WHITE, '連鎖で裏返るのは石だけ');
+        chained += all.length;
+        stack.push({ m, turn, move, before });
+        passes = 0;
+      }
+      turn = 3 - turn;
+    }
+    while (stack.length) {
+      const { m, turn: t, move, before } = stack.pop();
+      E.undoMove(b, m, t, move);
+      assert.deepEqual(b, before);
+    }
+  }
+  assert.ok(chained > 0, 'ランダムな対局で連鎖が起きている');
+});
+
+test('連鎖爆裂ルールでも、全レベルの CPU が最後まで合法手で対局できる', () => {
+  for (let level = 1; level <= AI.MAX_LEVEL; level++) {
+    const rand = seeded(level + 100);
+    const cpu = (b, p) => AI.chooseMove(b, p, level, { random: rand, timeLimitMs: 100, chain: true });
+    const final = playGame(cpu, cpu, true);
+    assert.ok(E.isGameOver(final));
   }
 });
 

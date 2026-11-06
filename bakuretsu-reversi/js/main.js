@@ -14,6 +14,7 @@
   const FLIP_STAGGER_MS = 60; // 置いた石から離れるほど遅れて裏返す
   const BLAST_GAP_MS = 120; // はさんで裏返し終わってから爆発するまでの間
   const BLAST_FX_MS = 650; // CSS の爆発エフェクト（.blast-fx）の長さと合わせる
+  const CHAIN_GAP_MS = 140; // 連鎖爆裂：ひとつ前の段階が裏返り終わってから次が裏返るまでの間
   const COLS = 'abcdefgh';
 
   const TIERS = {
@@ -53,6 +54,7 @@
     levelDown: $('level-down'),
     levelUp: $('level-up'),
     sideField: $('side-field'),
+    chainNote: $('chain-note'),
     board: $('board'),
     tray: $('tray'),
     status: $('status'),
@@ -82,7 +84,7 @@
   const settings = loadSettings();
 
   function loadSettings() {
-    const defaults = { mode: 'cpu', level: 3, side: 'black', hints: true, sound: true };
+    const defaults = { mode: 'cpu', level: 3, side: 'black', hints: true, sound: true, chain: false };
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
       if (saved && typeof saved === 'object') {
@@ -93,6 +95,7 @@
         if (saved.side === 'black' || saved.side === 'white') defaults.side = saved.side;
         if (typeof saved.hints === 'boolean') defaults.hints = saved.hints;
         if (typeof saved.sound === 'boolean') defaults.sound = saved.sound;
+        if (typeof saved.chain === 'boolean') defaults.chain = saved.chain;
       }
     } catch (e) {
       // 保存領域が使えない環境では既定値のまま
@@ -133,6 +136,7 @@
     f.side.value = settings.side;
     f.hints.checked = settings.hints;
     f.sound.checked = settings.sound;
+    f.chain.checked = settings.chain;
     Sound.setEnabled(settings.sound);
     updateMenu();
 
@@ -142,6 +146,7 @@
       settings.side = f.side.value;
       settings.hints = f.hints.checked;
       settings.sound = f.sound.checked;
+      settings.chain = f.chain.checked;
       Sound.setEnabled(settings.sound);
       saveSettings();
       updateMenu();
@@ -179,6 +184,7 @@
     const cpu = isCpuMode();
     els.levelField.disabled = !cpu;
     els.sideField.disabled = !cpu;
+    els.chainNote.hidden = !settings.chain;
     fitTitle();
   }
 
@@ -231,7 +237,8 @@
     history: [], // 各着手後の局面（先頭は初期局面）
     token: 0, // 進行中の CPU 思考・タイマーを無効化するための世代番号
     timers: [],
-    animating: false, // はさむ → 爆発のアニメーション中は次の手を受け付けない
+    animating: false, // はさむ → 爆発（→ 連鎖）のアニメーション中は次の手を受け付けない
+    chain: false, // 連鎖爆裂ルールか（対局を始めたときの設定。対局中は変わらない）
   };
 
   function snapshot() {
@@ -252,6 +259,7 @@
     game.timers = [];
     game.animating = false;
     hideBlastFx();
+    for (const { cell } of cells.values()) cell.classList.remove('chained');
   }
 
   function later(fn, ms) {
@@ -288,6 +296,7 @@
     game.turn = BLACK;
     game.lastMove = null;
     game.over = false;
+    game.chain = settings.chain;
     game.history = [snapshot()];
 
     setPlayerCard(BLACK);
@@ -320,11 +329,12 @@
    * 着手する。画面では 2 段階で見せる。
    * 1. 置いた石からはさんだ石を、距離に応じて順に裏返す
    * 2. 置いたマスで爆発し、まわり 8 マスの石をいっせいに裏返す
+   * 3. 連鎖爆裂ルールでは、連鎖で裏返る石を段階ごとに順に裏返す
    */
   function playMove(pos) {
     const player = game.turn;
     const before = E.cloneBoard(game.board);
-    const move = E.applyMove(game.board, pos, player);
+    const move = E.applyMove(game.board, pos, player, game.chain);
     if (!move) return;
     game.lastMove = pos;
 
@@ -352,17 +362,37 @@
     game.animating = true;
     render({ placed: pos, delays, board: sandwiched });
 
+    // 2 段階目の盤面（爆風まで反映した状態）。連鎖がなければ最終の盤面と同じ
+    const blasted = E.cloneBoard(sandwiched);
+    for (const q of move.blast) blasted[q] = 3 - blasted[q];
+
     const blastAt = maxDelay + FLIP_MS + BLAST_GAP_MS;
     later(() => {
       showBlastFx(pos);
       Sound.blast(move.blast.length);
-      render({ blasted: new Set(move.blast) });
+      render({ blasted: new Set(move.blast), board: move.chain.length > 0 ? blasted : null });
       later(hideBlastFx, BLAST_FX_MS);
     }, blastAt);
 
-    const animMs = blastAt + Math.max(FLIP_MS, BLAST_FX_MS);
+    // 3 段階目：連鎖で裏返る石を段階ごとに見せる
+    let stageAt = blastAt;
+    const stage = E.cloneBoard(blasted);
+    move.chain.forEach((wave, i) => {
+      stageAt += FLIP_MS + CHAIN_GAP_MS;
+      for (const q of wave) stage[q] = 3 - stage[q];
+      const view = i === move.chain.length - 1 ? null : E.cloneBoard(stage);
+      later(() => {
+        Sound.chain(i);
+        showToast(`れんさ ×${i + 1}！`);
+        render({ chained: new Set(wave), board: view });
+      }, stageAt);
+    });
+
+    const animMs =
+      move.chain.length > 0 ? stageAt + FLIP_MS + CHAIN_GAP_MS : blastAt + Math.max(FLIP_MS, BLAST_FX_MS);
     later(() => {
       game.animating = false;
+      for (const { cell } of cells.values()) cell.classList.remove('chained');
       render();
       if (game.over) {
         later(showResult, 300);
@@ -415,7 +445,7 @@
     updateUndoButton();
     later(() => {
       const token = game.token;
-      const move = AI.chooseMove(game.board, game.turn, settings.level);
+      const move = AI.chooseMove(game.board, game.turn, settings.level, { chain: game.chain });
       if (token !== game.token) return;
       if (move != null) playMove(move);
     }, delay);
@@ -452,6 +482,7 @@
     const delays = o.delays || new Map();
     const board = o.board || game.board; // アニメーションの途中は、途中の盤面を見せる
     const blasted = o.blasted || null;
+    const chained = o.chained || null;
     if (o.instant) els.board.classList.add('instant');
 
     const hints =
@@ -474,6 +505,7 @@
         }
       }
       if (blasted) cell.classList.toggle('blasted', blasted.has(pos));
+      if (chained) cell.classList.toggle('chained', chained.has(pos));
       cell.classList.toggle('hint', hints.has(pos));
       cell.classList.toggle('last', pos === game.lastMove);
       cell.setAttribute('aria-label', cellLabel(pos, v, hints.has(pos)));

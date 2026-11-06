@@ -85,6 +85,12 @@
       tone(120, 0.35, { type: 'sine', volume: 0.5 * power, slide: 40 });
       tone(620, 0.12, { type: 'triangle', volume: 0.08, slide: 300, delay: 40 });
     },
+    /** 連鎖爆裂で石が裏返る。段階（0 から）が進むほど音を高くする。 */
+    chain(step) {
+      const f = 520 * Math.pow(1.12, Math.min(10, step || 0));
+      tone(f, 0.08, { type: 'square', volume: 0.08 });
+      tone(f * 1.5, 0.12, { type: 'triangle', volume: 0.12, slide: f * 2, delay: 70 });
+    },
     pass() {
       tone(440, 0.12, { volume: 0.15 });
       tone(330, 0.2, { volume: 0.15, delay: 140 });

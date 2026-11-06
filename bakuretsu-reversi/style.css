@@ -523,6 +523,24 @@ button {
   color: #2f9e55;
 }
 
+.chip.wide {
+  grid-column: 1 / -1;
+}
+
+.chain-note {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.chain-note[hidden] {
+  display: none;
+}
+
 .start-btn {
   margin-top: 4px;
   padding: 15px 20px 13px;
@@ -1179,6 +1197,16 @@ button {
   100% { background: var(--leaf); }
 }
 
+/* 連鎖爆裂で裏返るマスが光る */
+.cell.chained {
+  animation: cell-chain 0.55s ease-out;
+}
+
+@keyframes cell-chain {
+  0% { background: #ff9d6b; box-shadow: inset 0 0 0 3px #ffffff; }
+  100% { background: var(--leaf); box-shadow: inset 0 0 0 0 #ffffff; }
+}
+
 .tray.shake {
   animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
@@ -1196,6 +1224,7 @@ button {
   .hero-boom,
   .tray.shake,
   .cell.blasted,
+  .cell.chained,
   .disc-wrap.pop,
   .toast,
   .result,
