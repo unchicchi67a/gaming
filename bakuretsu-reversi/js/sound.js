@@ -85,7 +85,7 @@
       tone(120, 0.35, { type: 'sine', volume: 0.5 * power, slide: 40 });
       tone(620, 0.12, { type: 'triangle', volume: 0.08, slide: 300, delay: 40 });
     },
-    /** おいうちで石が裏返る。 */
+    /** 爆裂連鎖で石が裏返る。 */
     followUp() {
       const f = 520;
       tone(f, 0.08, { type: 'square', volume: 0.08 });

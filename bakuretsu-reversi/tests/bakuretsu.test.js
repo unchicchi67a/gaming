@@ -19,7 +19,7 @@ function seeded(seed) {
   };
 }
 
-/** 2 つの思考関数で 1 局打ち、最終盤面を返す。followUp が true なら「おいうち」ありのルールで打つ。 */
+/** 2 つの思考関数で 1 局打ち、最終盤面を返す。followUp が true なら「爆裂連鎖」ありのルールで打つ。 */
 function playGame(chooseBlack, chooseWhite, followUp) {
   const b = E.createBoard();
   let turn = BLACK;
@@ -159,10 +159,10 @@ test('ランダムな対局で、着手と取り消しを繰り返しても盤�
   }
 });
 
-test('おいうち：爆風で裏返った石がはさんだ石も裏返る（1 回だけ）', () => {
+test('爆裂連鎖：爆風で裏返った石がはさんだ石も裏返る（1 回だけ）', () => {
   // 黒が (4,4) に打つ。(4,5) の白をはさみ、爆風で (4,5) は白に戻り、(3,4) の白が黒になる。
-  // 黒になった (3,4) が右上の (2,5) の白を (1,6) の黒ではさむ → おいうちで (2,5) が黒に。
-  // 黒になった (2,5) は上の (1,5) の白を (0,5) の黒ではさめるが、おいうちは 1 回だけなので (1,5) は白のまま
+  // 黒になった (3,4) が右上の (2,5) の白を (1,6) の黒ではさむ → 爆裂連鎖で (2,5) が黒に。
+  // 黒になった (2,5) は上の (1,5) の白を (0,5) の黒ではさめるが、爆裂連鎖は 1 回だけなので (1,5) は白のまま
   const stones = {
     '4,5': WHITE,
     '4,6': BLACK,
@@ -175,7 +175,7 @@ test('おいうち：爆風で裏返った石がはさんだ石も裏返る（1 
 
   const plain = boardWith(stones);
   const plainMove = E.applyMove(plain, toPos(4, 4), BLACK);
-  assert.deepEqual(plainMove.followUp, [], 'おいうちなしのルールでは起きない');
+  assert.deepEqual(plainMove.followUp, [], '爆裂連鎖なしのルールでは起きない');
   assert.equal(plain[toPos(2, 5)], WHITE);
 
   const b = boardWith(stones);
@@ -185,14 +185,14 @@ test('おいうち：爆風で裏返った石がはさんだ石も裏返る（1 
   assert.deepEqual(move.blast.sort(byPos), [toPos(3, 4), toPos(4, 5)]);
   assert.deepEqual(move.followUp, [toPos(2, 5)]);
   assert.equal(b[toPos(3, 4)], BLACK, '爆風で黒に');
-  assert.equal(b[toPos(2, 5)], BLACK, 'おいうちで黒に');
-  assert.equal(b[toPos(1, 5)], WHITE, 'おいうちで裏返った石からは、もう判定しない');
+  assert.equal(b[toPos(2, 5)], BLACK, '爆裂連鎖で黒に');
+  assert.equal(b[toPos(1, 5)], WHITE, '爆裂連鎖で裏返った石からは、もう判定しない');
   assert.equal(b[toPos(4, 5)], WHITE, 'はさんだ石は爆風で白に戻ったまま');
   E.undoMove(b, toPos(4, 4), BLACK, move);
   assert.deepEqual(b, before);
 });
 
-test('おいうち：爆風で白になった石は、白として黒の石をはさむ', () => {
+test('爆裂連鎖：爆風で白になった石は、白として黒の石をはさむ', () => {
   // 黒が (4,4) に打つ（下の (5,4) の白をはさむ）。爆風で (4,3) の黒が白になり、
   // 左の (4,2) の黒を (4,1) の白ではさむ
   const b = boardWith({ '5,4': WHITE, '6,4': BLACK, '4,3': BLACK, '4,2': BLACK, '4,1': WHITE });
@@ -203,7 +203,7 @@ test('おいうち：爆風で白になった石は、白として黒の石を�
   assert.equal(b[toPos(4, 4)], BLACK);
 });
 
-test('おいうち：打った石も、はさまれれば裏返る', () => {
+test('爆裂連鎖：打った石も、はさまれれば裏返る', () => {
   // 黒が (4,4) に打つ。爆風で (4,3) の黒と (4,5) の黒（はさんだ石）が白になり、
   // 白になった (4,3) と (4,5) が、あいだの (4,4) の黒をはさむ
   const b = boardWith({ '4,5': WHITE, '4,6': BLACK, '4,3': BLACK });
@@ -214,7 +214,7 @@ test('おいうち：打った石も、はさまれれば裏返る', () => {
   assert.deepEqual(b, boardWith({ '4,5': WHITE, '4,6': BLACK, '4,3': BLACK }));
 });
 
-test('おいうち：判定は爆風の直後の盤面でまとめて行うので、判定の順番によらない', () => {
+test('爆裂連鎖：判定は爆風の直後の盤面でまとめて行うので、判定の順番によらない', () => {
   // 黒が (4,4) に打つ（下の (5,4) の白をはさむ）。爆風で (3,4) の白が黒に、(4,3) の黒が白になる。
   // 黒になった (3,4) は左下の (4,3)（白）を (5,2) の黒ではさむ。
   // 白になった (4,3) は上の (3,3) の黒を (2,3) の白ではさむ。
@@ -233,7 +233,7 @@ test('おいうち：判定は爆風の直後の盤面でまとめて行うの�
   assert.deepEqual(c, b);
 });
 
-test('おいうち：ランダムな対局で、取り消すと元に戻り、判定の順番によらない', () => {
+test('爆裂連鎖：ランダムな対局で、取り消すと元に戻り、判定の順番によらない', () => {
   const rand = seeded(7);
   let followed = 0;
   for (let g = 0; g < 30; g++) {
@@ -267,10 +267,10 @@ test('おいうち：ランダムな対局で、取り消すと元に戻り、�
       assert.deepEqual(b, before);
     }
   }
-  assert.ok(followed > 0, 'ランダムな対局でおいうちが起きている');
+  assert.ok(followed > 0, 'ランダムな対局で爆裂連鎖が起きている');
 });
 
-test('おいうちありのルールでも、全レベルの CPU が最後まで合法手で対局できる', () => {
+test('爆裂連鎖ありのルールでも、全レベルの CPU が最後まで合法手で対局できる', () => {
   for (let level = 1; level <= AI.MAX_LEVEL; level++) {
     const rand = seeded(level + 100);
     const cpu = (b, p) => AI.chooseMove(b, p, level, { random: rand, timeLimitMs: 100, followUp: true });

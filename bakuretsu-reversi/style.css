@@ -1197,7 +1197,7 @@ button {
   100% { background: var(--leaf); }
 }
 
-/* おいうちで裏返るマスが光る */
+/* 爆裂連鎖で裏返るマスが光る */
 .cell.followed {
   animation: cell-follow 0.55s ease-out;
 }

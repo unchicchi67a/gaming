@@ -7,7 +7,7 @@
  * - レベル 3〜6: 位置評価（＋着手可能数）による浅い先読み。低いレベルほど判断に揺らぎを入れる
  * - レベル 7〜10: 深い先読み（反復深化 αβ 探索）＋終盤の完全読み
  *
- * 「おいうち」ありのルールでは options.followUp を true にする（先読みもおいうちを含めて計算する）。
+ * 「爆裂連鎖」ありのルールでは options.followUp を true にする（先読みも爆裂連鎖を含めて計算する）。
  *
  * 探索は時間制限付きで、制限を超えた場合は直前に読み切った深さの結果を使う。
  */
@@ -260,7 +260,7 @@
    * @param {number} player 手番の色
    * @param {number} level 1〜10
    * @param {{timeLimitMs?: number, random?: () => number, followUp?: boolean}} [options]
-   *   followUp：「おいうち」ありのルールで考える
+   *   followUp：「爆裂連鎖」ありのルールで考える
    */
   function chooseMove(board, player, level, options) {
     const opts = options || {};

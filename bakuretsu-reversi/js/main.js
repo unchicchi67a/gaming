@@ -14,7 +14,7 @@
   const FLIP_STAGGER_MS = 60; // 置いた石から離れるほど遅れて裏返す
   const BLAST_GAP_MS = 120; // はさんで裏返し終わってから爆発するまでの間
   const BLAST_FX_MS = 650; // CSS の爆発エフェクト（.blast-fx）の長さと合わせる
-  const FOLLOW_GAP_MS = 140; // おいうち：爆風で裏返り終わってから、おいうちで裏返るまでの間
+  const FOLLOW_GAP_MS = 140; // 爆裂連鎖：爆風で裏返り終わってから、爆裂連鎖で裏返るまでの間
   const COLS = 'abcdefgh';
 
   const TIERS = {
@@ -237,8 +237,8 @@
     history: [], // 各着手後の局面（先頭は初期局面）
     token: 0, // 進行中の CPU 思考・タイマーを無効化するための世代番号
     timers: [],
-    animating: false, // はさむ → 爆発（→ おいうち）のアニメーション中は次の手を受け付けない
-    followUp: false, // 「おいうち」ありのルールか（対局を始めたときの設定。対局中は変わらない）
+    animating: false, // はさむ → 爆発（→ 爆裂連鎖）のアニメーション中は次の手を受け付けない
+    followUp: false, // 「爆裂連鎖」ありのルールか（対局を始めたときの設定。対局中は変わらない）
   };
 
   function snapshot() {
@@ -329,7 +329,7 @@
    * 着手する。画面では 2 段階で見せる。
    * 1. 置いた石からはさんだ石を、距離に応じて順に裏返す
    * 2. 置いたマスで爆発し、まわり 8 マスの石をいっせいに裏返す
-   * 3. 「おいうち」ありのルールでは、爆風で裏返った石がはさんだ石を裏返す
+   * 3. 「爆裂連鎖」ありのルールでは、爆風で裏返った石がはさんだ石を裏返す
    */
   function playMove(pos) {
     const player = game.turn;
@@ -362,7 +362,7 @@
     game.animating = true;
     render({ placed: pos, delays, board: sandwiched });
 
-    // 2 段階目の盤面（爆風まで反映した状態）。おいうちがなければ最終の盤面と同じ
+    // 2 段階目の盤面（爆風まで反映した状態）。爆裂連鎖がなければ最終の盤面と同じ
     const blasted = E.cloneBoard(sandwiched);
     for (const q of move.blast) blasted[q] = 3 - blasted[q];
 
@@ -374,12 +374,11 @@
       later(hideBlastFx, BLAST_FX_MS);
     }, blastAt);
 
-    // 3 段階目：おいうちで裏返る石を見せる
+    // 3 段階目：爆裂連鎖で裏返る石を見せる
     const followAt = blastAt + FLIP_MS + FOLLOW_GAP_MS;
     if (move.followUp.length > 0) {
       later(() => {
         Sound.followUp();
-        showToast('おいうち！');
         render({ followed: new Set(move.followUp) });
       }, followAt);
     }
