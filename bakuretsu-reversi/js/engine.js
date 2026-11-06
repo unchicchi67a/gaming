@@ -6,8 +6,8 @@
  * - 打つと、まず通常のリバーシと同じように、はさんだ石を裏返す
  * - そのあと「爆風」で、打ったマスのまわり 8 マスにある石を、色に関係なくすべて裏返す
  *   （はさんで裏返したばかりの石も、隣にあればもう一度裏返って元の色に戻る。空きマスは変わらない）
- * - オプションの「連鎖爆裂」では、爆風で裏返った石が新しい色で相手の石をはさんでいれば、それも裏返す。
- *   裏返った石がさらに別の石をはさめば続けて裏返し、変化がなくなるまでくり返す（getChain を参照）
+ * - オプションの「おいうち」では、爆風で裏返った石が新しい色で相手の石をはさんでいれば、それも裏返す。
+ *   判定は 1 回だけで、おいうちで裏返った石からはもう判定しない（getFollowUp を参照）
  *
  * 盤面は 10x10 の Int8Array（外周 1 マスを壁とする）で表現する。
  * 盤上のマス (row, col) のインデックスは (row + 1) * 10 + (col + 1)。
@@ -116,65 +116,53 @@
   }
 
   /**
-   * 連鎖爆裂：sources（爆風で裏返った石）から始めて、連鎖で裏返る石を段階ごとに求め、盤面に反映する。
-   * 戻り値は段階ごとの石の一覧の配列（例：[[1 段目の石...], [2 段目の石...]]）。連鎖しなければ []。
+   * おいうち：爆風で裏返った石（sources）それぞれについて、新しい色で 8 方向にはさめる相手の石を探し、
+   * まとめて裏返す（通常のリバーシで、その石を置いたときと同じ判定）。裏返した石の一覧を返す。
    *
-   * - 各段階では、直前の段階で裏返った石それぞれについて、今の色で 8 方向にはさめる相手の石を探す
-   *   （通常のリバーシで、その石を置いたときと同じ判定）。見つかった石をまとめて裏返し、次の段階の起点にする
-   * - 同じ段階の判定は、その段階を始めたときの盤面で行う（判定の順番で結果が変わらないように）
-   * - 連鎖で一度裏返った石は、その手のあいだはもう裏返らない（行ったり来たりして終わらなくなるのを防ぐ）
+   * - 判定は 1 回だけ。おいうちで裏返った石が、さらに別の石をはさんでも裏返さない
+   * - すべての判定は爆風の直後の盤面で行い、そのあとでまとめて裏返す。
+   *   そのため、どの石から判定しても結果は同じになる（判定の途中で盤面が変わらない）
+   * - 白の石がはさむのは黒の石、黒の石がはさむのは白の石だけなので、
+   *   同じ石を黒にする判定と白にする判定がぶつかることはない
    */
-  function getChain(b, sources) {
-    const waves = [];
-    const done = new Set();
-    let from = sources;
-    while (from.length > 0) {
-      const wave = new Set();
-      for (const s of from) {
-        const me = b[s];
-        const opp = 3 - me;
-        for (const d of DIRS) {
-          let q = s + d;
-          while (b[q] === opp) q += d;
-          if (b[q] !== me) continue;
-          for (let x = s + d; x !== q; x += d) if (!done.has(x)) wave.add(x);
-        }
+  function getFollowUp(b, sources) {
+    const hit = new Set();
+    for (const s of sources) {
+      const me = b[s];
+      const opp = 3 - me;
+      for (const d of DIRS) {
+        let q = s + d;
+        while (b[q] === opp) q += d;
+        if (b[q] !== me) continue;
+        for (let x = s + d; x !== q; x += d) hit.add(x);
       }
-      if (wave.size === 0) break;
-      const flipped = [...wave];
-      for (const q of flipped) {
-        b[q] = 3 - b[q];
-        done.add(q);
-      }
-      waves.push(flipped);
-      from = flipped;
     }
-    return waves;
+    const flipped = [...hit];
+    for (const q of flipped) b[q] = 3 - b[q];
+    return flipped;
   }
 
   /**
    * 盤面を直接書き換えて着手する。
    * 打てないマスなら盤面を変えずに null を返す。
-   * 打てたら { flips, blast, chain } を返す
-   * （flips：はさんで裏返した石、blast：爆風で裏返した石、chain：連鎖で裏返した石の段階ごとの一覧）。
-   * chain を true にすると連鎖爆裂ルールで着手する（false なら chain は常に []）。
+   * 打てたら { flips, blast, followUp } を返す
+   * （flips：はさんで裏返した石、blast：爆風で裏返した石、followUp：おいうちで裏返した石）。
+   * followUp を true にすると「おいうち」ありのルールで着手する（false なら戻り値の followUp は常に []）。
    * 戻り値は undoMove に渡すと着手を取り消せる。
    */
-  function applyMove(b, pos, player, chain) {
+  function applyMove(b, pos, player, followUp) {
     const flips = getFlips(b, pos, player);
     if (flips.length === 0) return null;
     b[pos] = player;
     for (const q of flips) b[q] = player;
     const blast = getBlast(b, pos);
     for (const q of blast) b[q] = 3 - b[q];
-    return { flips, blast, chain: chain ? getChain(b, blast) : [] };
+    return { flips, blast, followUp: followUp ? getFollowUp(b, blast) : [] };
   }
 
   /** applyMove を取り消す。 */
   function undoMove(b, pos, player, move) {
-    for (let i = move.chain.length - 1; i >= 0; i--) {
-      for (const q of move.chain[i]) b[q] = 3 - b[q];
-    }
+    for (const q of move.followUp) b[q] = 3 - b[q];
     for (const q of move.blast) b[q] = 3 - b[q];
     const opp = 3 - player;
     for (const q of move.flips) b[q] = opp;
@@ -211,7 +199,7 @@
     cloneBoard,
     getFlips,
     getBlast,
-    getChain,
+    getFollowUp,
     isLegal,
     legalMoves,
     countMoves,

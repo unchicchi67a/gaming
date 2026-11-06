@@ -527,7 +527,7 @@ button {
   grid-column: 1 / -1;
 }
 
-.chain-note {
+.follow-note {
   grid-column: 1 / -1;
   margin: -2px 0 0;
   color: var(--ink-soft);
@@ -537,7 +537,7 @@ button {
   text-align: center;
 }
 
-.chain-note[hidden] {
+.follow-note[hidden] {
   display: none;
 }
 
@@ -1197,12 +1197,12 @@ button {
   100% { background: var(--leaf); }
 }
 
-/* 連鎖爆裂で裏返るマスが光る */
-.cell.chained {
-  animation: cell-chain 0.55s ease-out;
+/* おいうちで裏返るマスが光る */
+.cell.followed {
+  animation: cell-follow 0.55s ease-out;
 }
 
-@keyframes cell-chain {
+@keyframes cell-follow {
   0% { background: #ff9d6b; box-shadow: inset 0 0 0 3px #ffffff; }
   100% { background: var(--leaf); box-shadow: inset 0 0 0 0 #ffffff; }
 }
@@ -1224,7 +1224,7 @@ button {
   .hero-boom,
   .tray.shake,
   .cell.blasted,
-  .cell.chained,
+  .cell.followed,
   .disc-wrap.pop,
   .toast,
   .result,
