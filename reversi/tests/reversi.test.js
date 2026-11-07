@@ -52,18 +52,18 @@ test('初期配置と黒の合法手', () => {
 test('着手で石が裏返り、undoMove で元に戻る', () => {
   const b = E.createBoard();
   const before = E.cloneBoard(b);
-  const flips = E.applyMove(b, toPos(2, 3), BLACK);
-  assert.deepEqual(flips, [toPos(3, 3)]);
+  const move = E.applyMove(b, toPos(2, 3), BLACK);
+  assert.deepEqual(move, { flips: [toPos(3, 3)], blast: [], followUp: [] }, '爆裂なしのルールでは爆風が起きない');
   assert.equal(b[toPos(3, 3)], BLACK);
   assert.deepEqual(E.countDiscs(b), { black: 4, white: 1, empty: 59 });
-  E.undoMove(b, toPos(2, 3), BLACK, flips);
+  E.undoMove(b, toPos(2, 3), BLACK, move);
   assert.deepEqual(b, before);
 });
 
 test('打てないマスへの着手は盤面を変えない', () => {
   const b = E.createBoard();
   const before = E.cloneBoard(b);
-  assert.deepEqual(E.applyMove(b, toPos(0, 0), BLACK), []);
+  assert.equal(E.applyMove(b, toPos(0, 0), BLACK), null);
   assert.deepEqual(b, before);
 });
 
@@ -78,9 +78,17 @@ test('複数方向をまとめて裏返す', () => {
   b[toPos(4, 4)] = WHITE;
   b[toPos(5, 5)] = BLACK;
   b[toPos(2, 2)] = WHITE; // 挟めない向き
-  const flips = E.applyMove(b, toPos(3, 3), BLACK);
+  const { flips } = E.applyMove(b, toPos(3, 3), BLACK);
   assert.deepEqual(flips.sort((x, y) => x - y), [toPos(3, 4), toPos(4, 3), toPos(4, 4)].sort((x, y) => x - y));
   assert.equal(b[toPos(2, 2)], WHITE);
+});
+
+test('爆裂連鎖だけをオンにしても、爆裂なしなら通常のリバーシになる', () => {
+  assert.deepEqual(E.makeRules(false, true), { blast: false, followUp: false });
+  assert.deepEqual(E.makeRules(true, true), { blast: true, followUp: true });
+  const b = E.createBoard();
+  const move = E.applyMove(b, toPos(2, 3), BLACK, E.makeRules(false, true));
+  assert.deepEqual(move, { flips: [toPos(3, 3)], blast: [], followUp: [] });
 });
 
 test('全レベルの CPU が最後まで合法手で対局できる', () => {

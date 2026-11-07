@@ -1,10 +1,13 @@
 /**
  * リバーシの CPU 思考ルーチン（レベル 1〜10）。
+ * 着手（爆裂ルールの爆風・爆裂連鎖を含む）は engine.js の applyMove / undoMove に任せる。
  *
  * - レベル 1   : ランダムに打つ
- * - レベル 2   : 多く返せる手を好む（ときどきランダム）
+ * - レベル 2   : 打ったあとの石の増え方が大きい手を好む（ときどきランダム）
  * - レベル 3〜6: 位置評価（＋着手可能数）による浅い先読み。低いレベルほど判断に揺らぎを入れる
  * - レベル 7〜10: 深い先読み（反復深化 αβ 探索）＋終盤の完全読み
+ *
+ * 爆裂ルールで考えるときは options.rules に engine.js の applyMove と同じルールを渡す（先読みも同じルールで計算する）。
  *
  * 探索は時間制限付きで、制限を超えた場合は直前に読み切った深さの結果を使う。
  */
@@ -118,9 +121,9 @@
     orderByWeight(moves);
     let best = -Infinity;
     for (const m of moves) {
-      const flips = E.applyMove(b, m, player);
+      const move = E.applyMove(b, m, player, ctx.rules);
       const v = -negamax(ctx, b, 3 - player, depth - 1, -beta, -alpha, false);
-      E.undoMove(b, m, player, flips);
+      E.undoMove(b, m, player, move);
       if (v > best) {
         best = v;
         if (v > alpha) {
@@ -133,11 +136,11 @@
   }
 
   /** 相手の着手可能数が少ない手から読む（完全読みの枝刈り効率を上げる）。 */
-  function orderByOpponentMobility(b, player, moves) {
+  function orderByOpponentMobility(ctx, b, player, moves) {
     const scored = moves.map((m) => {
-      const flips = E.applyMove(b, m, player);
+      const move = E.applyMove(b, m, player, ctx.rules);
       const n = E.countMoves(b, 3 - player);
-      E.undoMove(b, m, player, flips);
+      E.undoMove(b, m, player, move);
       return { m, n };
     });
     scored.sort((x, y) => x.n - y.n || WEIGHTS[y.m] - WEIGHTS[x.m]);
@@ -153,12 +156,12 @@
       if (passed) return discDiff(b, player);
       return -solve(ctx, b, 3 - player, -beta, -alpha, true, empties);
     }
-    if (empties > 6 && moves.length > 1) moves = orderByOpponentMobility(b, player, moves);
+    if (empties > 6 && moves.length > 1) moves = orderByOpponentMobility(ctx, b, player, moves);
     let best = -Infinity;
     for (const m of moves) {
-      const flips = E.applyMove(b, m, player);
+      const move = E.applyMove(b, m, player, ctx.rules);
       const v = -solve(ctx, b, 3 - player, -beta, -alpha, false, empties - 1);
-      E.undoMove(b, m, player, flips);
+      E.undoMove(b, m, player, move);
       if (v > best) {
         best = v;
         if (v > alpha) {
@@ -182,12 +185,15 @@
     return arr[Math.floor(rand() * arr.length)];
   }
 
-  function chooseGreedy(b, player, moves, cfg, rand) {
+  function chooseGreedy(ctx, b, player, moves, cfg, rand) {
     if (rand() < cfg.randomRate) return pick(moves, rand);
-    let best = -1;
+    let best = -Infinity; // 爆風で石が減る手しかないこともあるので、差はマイナスにもなる
     let candidates = [];
+    const work = E.cloneBoard(b);
     for (const m of moves) {
-      const n = E.getFlips(b, m, player).length;
+      const move = E.applyMove(work, m, player, ctx.rules);
+      const n = discDiff(work, player);
+      E.undoMove(work, m, player, move);
       if (n > best) {
         best = n;
         candidates = [m];
@@ -198,16 +204,16 @@
     return pick(candidates, rand);
   }
 
-  function solveRoot(board, player, moves, empties, deadline) {
+  function solveRoot(board, player, moves, empties, deadline, rules) {
     const b = E.cloneBoard(board);
-    const ctx = { deadline, nodes: 0 };
-    const ordered = orderByOpponentMobility(b, player, moves.slice());
+    const ctx = { deadline, nodes: 0, rules };
+    const ordered = orderByOpponentMobility(ctx, b, player, moves.slice());
     let bestMove = ordered[0];
     let alpha = -Infinity;
     for (const m of ordered) {
-      const flips = E.applyMove(b, m, player);
+      const move = E.applyMove(b, m, player, ctx.rules);
       const v = -solve(ctx, b, 3 - player, -Infinity, -alpha, false, empties - 1);
-      E.undoMove(b, m, player, flips);
+      E.undoMove(b, m, player, move);
       if (v > alpha) {
         alpha = v;
         bestMove = m;
@@ -216,8 +222,8 @@
     return bestMove;
   }
 
-  function searchRoot(board, player, moves, cfg, deadline, rand) {
-    const ctx = { deadline, nodes: 0, mobility: cfg.mobility };
+  function searchRoot(board, player, moves, cfg, deadline, rand, rules) {
+    const ctx = { deadline, nodes: 0, mobility: cfg.mobility, rules };
     let order = orderByWeight(shuffle(moves.slice(), rand));
     let bestMove = order[0];
     for (let depth = 1; depth <= cfg.depth; depth++) {
@@ -226,13 +232,13 @@
         const scored = [];
         let alpha = -Infinity;
         for (const m of order) {
-          const flips = E.applyMove(b, m, player);
+          const move = E.applyMove(b, m, player, ctx.rules);
           // 揺らぎを入れる場合は全候補の正確な値が必要なので窓を狭めない
           const v =
             cfg.noise > 0
               ? -negamax(ctx, b, 3 - player, depth - 1, -Infinity, Infinity, false)
               : -negamax(ctx, b, 3 - player, depth - 1, -Infinity, -alpha, false);
-          E.undoMove(b, m, player, flips);
+          E.undoMove(b, m, player, move);
           if (v > alpha) alpha = v;
           scored.push({ m, v: cfg.noise > 0 ? v + (rand() * 2 - 1) * cfg.noise : v });
         }
@@ -253,7 +259,8 @@
    * @param {Int8Array} board 盤面（書き換えない）
    * @param {number} player 手番の色
    * @param {number} level 1〜10
-   * @param {{timeLimitMs?: number, random?: () => number}} [options]
+   * @param {{timeLimitMs?: number, random?: () => number, rules?: {blast?: boolean, followUp?: boolean}}} [options]
+   *   rules：applyMove に渡すルール（省略すると通常のリバーシ）
    */
   function chooseMove(board, player, level, options) {
     const opts = options || {};
@@ -261,24 +268,25 @@
     const timeLimit = opts.timeLimitMs != null ? opts.timeLimitMs : 1500;
     const lv = Math.min(MAX_LEVEL, Math.max(1, Math.round(level) || 1));
     const cfg = LEVELS[lv];
+    const rules = opts.rules || null;
 
     const moves = E.legalMoves(board, player);
     if (moves.length === 0) return null;
     if (moves.length === 1) return moves[0];
 
     if (cfg.kind === 'random') return pick(moves, rand);
-    if (cfg.kind === 'greedy') return chooseGreedy(board, player, moves, cfg, rand);
+    if (cfg.kind === 'greedy') return chooseGreedy({ rules }, board, player, moves, cfg, rand);
 
     const empties = E.countDiscs(board).empty;
     if (cfg.exact && empties <= cfg.exact) {
       try {
-        return solveRoot(board, player, moves, empties, Date.now() + timeLimit);
+        return solveRoot(board, player, moves, empties, Date.now() + timeLimit, rules);
       } catch (e) {
         if (e !== ABORT) throw e;
         // 時間内に読み切れなければ通常の探索に切り替える
       }
     }
-    return searchRoot(board, player, moves, cfg, Date.now() + timeLimit, rand);
+    return searchRoot(board, player, moves, cfg, Date.now() + timeLimit, rand, rules);
   }
 
   return { chooseMove, evaluate, MAX_LEVEL };

@@ -41,6 +41,29 @@
     osc.stop(t + duration + 0.03);
   }
 
+  /** ザーッという雑音（爆発音の「ドカン」の広がり）。 */
+  function noise(duration, opts) {
+    const o = opts || {};
+    const c = audio();
+    if (!c) return;
+    const t = c.currentTime + (o.delay || 0) / 1000;
+    const len = Math.floor(c.sampleRate * duration);
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const filter = c.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(o.from || 2400, t);
+    filter.frequency.exponentialRampToValueAtTime(o.to || 200, t + duration);
+    const gain = c.createGain();
+    gain.gain.setValueAtTime(o.volume || 0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    src.connect(filter).connect(gain).connect(c.destination);
+    src.start(t);
+  }
+
   root.ReversiSound = {
     setEnabled(value) {
       enabled = !!value;
@@ -54,6 +77,19 @@
     },
     flip(delayMs) {
       tone(560, 0.06, { type: 'triangle', volume: 0.12, slide: 380, delay: delayMs });
+    },
+    /** 爆発。巻き込んだ石の数（0〜8）が多いほど大きく鳴らす。 */
+    blast(count) {
+      const power = 0.6 + 0.4 * Math.min(8, count || 0) / 8;
+      noise(0.45, { volume: 0.45 * power });
+      tone(120, 0.35, { type: 'sine', volume: 0.5 * power, slide: 40 });
+      tone(620, 0.12, { type: 'triangle', volume: 0.08, slide: 300, delay: 40 });
+    },
+    /** 爆裂連鎖で石が裏返る。 */
+    followUp() {
+      const f = 520;
+      tone(f, 0.08, { type: 'square', volume: 0.08 });
+      tone(f * 1.5, 0.12, { type: 'triangle', volume: 0.12, slide: f * 2, delay: 70 });
     },
     pass() {
       tone(440, 0.12, { volume: 0.15 });

@@ -13,6 +13,9 @@
   const STORAGE_KEY = 'reversi.settings.v2';
   const FLIP_MS = 420; // CSS の .disc の transition と合わせる
   const FLIP_STAGGER_MS = 60; // 置いた石から離れるほど遅れて裏返す
+  const BLAST_GAP_MS = 120; // はさんで裏返し終わってから爆発するまでの間
+  const BLAST_FX_MS = 650; // CSS の爆発エフェクト（.blast-fx）の長さと合わせる
+  const FOLLOW_GAP_MS = 140; // 爆裂連鎖：爆風で裏返り終わってから、爆裂連鎖で裏返るまでの間
   const COLS = 'abcdefgh';
 
   const TIERS = {
@@ -26,7 +29,7 @@
   const LEVELS = [
     null,
     { name: 'ルール練習', tier: 'easy', desc: 'でたらめに打ちます。ルールを覚えたい人向け。' },
-    { name: 'はじめて', tier: 'easy', desc: '石をたくさん返せる手を選びがち。ときどき適当に打ちます。' },
+    { name: 'はじめて', tier: 'easy', desc: '石がたくさん増える手を選びがち。ときどき適当に打ちます。' },
     { name: '入門', tier: 'easy', desc: '角などの大事なマスを意識しますが、先読みはしません。判断にムラがあります。' },
     { name: '初級', tier: 'normal', desc: '2手先まで読みます。まだミスは多めです。' },
     { name: '初級＋', tier: 'normal', desc: '2手先まで読み、相手の打てる場所を減らす作戦も使います。' },
@@ -52,7 +55,11 @@
     levelDown: $('level-down'),
     levelUp: $('level-up'),
     sideField: $('side-field'),
+    followUpChip: $('follow-up-chip'),
+    followNote: $('follow-note'),
+    blastNote: $('blast-note'),
     board: $('board'),
+    tray: $('tray'),
     status: $('status'),
     toast: $('toast'),
     playerBlack: $('player-black'),
@@ -80,7 +87,7 @@
   const settings = loadSettings();
 
   function loadSettings() {
-    const defaults = { mode: 'cpu', level: 3, side: 'black', hints: true, sound: true };
+    const defaults = { mode: 'cpu', level: 3, side: 'black', hints: true, sound: true, blast: false, followUp: false };
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
       if (saved && typeof saved === 'object') {
@@ -91,6 +98,8 @@
         if (saved.side === 'black' || saved.side === 'white') defaults.side = saved.side;
         if (typeof saved.hints === 'boolean') defaults.hints = saved.hints;
         if (typeof saved.sound === 'boolean') defaults.sound = saved.sound;
+        if (typeof saved.blast === 'boolean') defaults.blast = saved.blast;
+        if (typeof saved.followUp === 'boolean') defaults.followUp = saved.followUp;
       }
     } catch (e) {
       // 保存領域が使えない環境では既定値のまま
@@ -131,6 +140,8 @@
     f.side.value = settings.side;
     f.hints.checked = settings.hints;
     f.sound.checked = settings.sound;
+    f.blast.checked = settings.blast;
+    f.followUp.checked = settings.followUp;
     Sound.setEnabled(settings.sound);
     updateMenu();
 
@@ -140,6 +151,8 @@
       settings.side = f.side.value;
       settings.hints = f.hints.checked;
       settings.sound = f.sound.checked;
+      settings.blast = f.blast.checked;
+      settings.followUp = f.followUp.checked;
       Sound.setEnabled(settings.sound);
       saveSettings();
       updateMenu();
@@ -177,12 +190,20 @@
     const cpu = isCpuMode();
     els.levelField.disabled = !cpu;
     els.sideField.disabled = !cpu;
+    // 爆裂連鎖は爆裂ありのときだけ選べる（チェックの状態は残しておく）
+    const f = els.menu.elements;
+    f.followUp.disabled = !settings.blast;
+    els.followUpChip.classList.toggle('off', !settings.blast);
+    els.blastNote.hidden = !settings.blast;
+    els.followNote.hidden = !(settings.blast && settings.followUp);
+    els.titleScreen.classList.toggle('blast-on', settings.blast);
     fitTitle();
   }
 
   /* ---------- 盤面の DOM ---------- */
 
   const cells = new Map(); // pos -> { cell, wrap, disc }
+  let blastFx = null; // 爆発のエフェクト（盤の上に重ねる）
 
   function buildBoard() {
     for (const pos of E.SQUARES) {
@@ -206,6 +227,12 @@
     stars.innerHTML = '<span></span><span></span><span></span><span></span>';
     els.board.appendChild(stars);
 
+    blastFx = document.createElement('div');
+    blastFx.className = 'blast-fx';
+    blastFx.setAttribute('aria-hidden', 'true');
+    blastFx.hidden = true;
+    els.board.appendChild(blastFx);
+
     els.board.addEventListener('click', (e) => {
       const cell = e.target.closest('.cell');
       if (cell) onCellClick(Number(cell.dataset.pos));
@@ -222,6 +249,8 @@
     history: [], // 各着手後の局面（先頭は初期局面）
     token: 0, // 進行中の CPU 思考・タイマーを無効化するための世代番号
     timers: [],
+    animating: false, // はさむ → 爆発（→ 爆裂連鎖）のアニメーション中は次の手を受け付けない
+    rules: E.makeRules(false, false), // 対局のルール（対局を始めたときの設定。対局中は変わらない）
   };
 
   function snapshot() {
@@ -240,6 +269,9 @@
     game.token++;
     for (const t of game.timers) clearTimeout(t);
     game.timers = [];
+    game.animating = false;
+    hideBlastFx();
+    for (const { cell } of cells.values()) cell.classList.remove('followed');
   }
 
   function later(fn, ms) {
@@ -252,7 +284,7 @@
   }
 
   function isHumanTurn() {
-    return !game.over && (!isCpuMode() || game.turn === humanColor());
+    return !game.over && !game.animating && (!isCpuMode() || game.turn === humanColor());
   }
 
   function playerName(color) {
@@ -276,6 +308,7 @@
     game.turn = BLACK;
     game.lastMove = null;
     game.over = false;
+    game.rules = E.makeRules(settings.blast, settings.followUp);
     game.history = [snapshot()];
 
     setPlayerCard(BLACK);
@@ -304,17 +337,28 @@
     playMove(pos);
   }
 
+  /**
+   * 着手する。画面では段階に分けて見せる。
+   * 1. 置いた石からはさんだ石を、距離に応じて順に裏返す
+   * 2. 爆裂ありのルールでは、置いたマスで爆発し、まわり 8 マスの石をいっせいに裏返す
+   * 3. 爆裂連鎖ありのルールでは、爆風で裏返った石がはさんだ石を裏返す
+   */
   function playMove(pos) {
     const player = game.turn;
-    const flips = E.applyMove(game.board, pos, player);
-    if (flips.length === 0) return;
+    const before = E.cloneBoard(game.board);
+    const move = E.applyMove(game.board, pos, player, game.rules);
+    if (!move) return;
     game.lastMove = pos;
 
-    // 置いた石からの距離に応じて裏返しを遅らせる
+    // 1 段階目の盤面（はさんだ石だけ裏返した状態）
+    const sandwiched = before;
+    sandwiched[pos] = player;
+    for (const q of move.flips) sandwiched[q] = player;
+
     const [r0, c0] = E.toRowCol(pos);
     const delays = new Map();
     let maxDelay = 0;
-    for (const q of flips) {
+    for (const q of move.flips) {
       const [r, c] = E.toRowCol(q);
       const d = (Math.max(Math.abs(r - r0), Math.abs(c - c0)) - 1) * FLIP_STAGGER_MS;
       delays.set(q, d);
@@ -327,22 +371,66 @@
     game.turn = 3 - player;
     const passed = resolvePass();
     game.history.push(snapshot());
-    render({ placed: pos, delays });
+    game.animating = true;
+    render({ placed: pos, delays, board: sandwiched });
 
-    const animMs = FLIP_MS + maxDelay;
-    if (game.over) {
-      later(showResult, animMs + 300);
-      return;
-    }
-    if (passed) {
+    // 2 段階目の盤面（爆風まで反映した状態）。爆裂連鎖がなければ最終の盤面と同じ
+    const blasted = E.cloneBoard(sandwiched);
+    for (const q of move.blast) blasted[q] = 3 - blasted[q];
+
+    const blastAt = maxDelay + FLIP_MS + BLAST_GAP_MS;
+    if (game.rules.blast) later(() => {
+      showBlastFx(pos);
+      Sound.blast(move.blast.length);
+      render({ blasted: new Set(move.blast), board: move.followUp.length > 0 ? blasted : null });
+      later(hideBlastFx, BLAST_FX_MS);
+    }, blastAt);
+
+    // 3 段階目：爆裂連鎖で裏返る石を見せる
+    const followAt = blastAt + FLIP_MS + FOLLOW_GAP_MS;
+    if (move.followUp.length > 0) {
       later(() => {
+        Sound.followUp();
+        render({ followed: new Set(move.followUp) });
+      }, followAt);
+    }
+
+    let animMs = maxDelay + FLIP_MS; // 爆裂なし：はさんだ石が裏返り終わるまで
+    if (move.followUp.length > 0) animMs = followAt + FLIP_MS + FOLLOW_GAP_MS;
+    else if (game.rules.blast) animMs = blastAt + Math.max(FLIP_MS, BLAST_FX_MS);
+    later(() => {
+      game.animating = false;
+      for (const { cell } of cells.values()) cell.classList.remove('followed');
+      render();
+      if (game.over) {
+        later(showResult, 300);
+        return;
+      }
+      if (passed) {
         showToast(`${playerName(passed)}は おける ばしょが ないので パス！`);
         Sound.pass();
-      }, animMs);
-    }
-    if (isCpuMode() && game.turn === cpuColor()) {
-      scheduleCpu(animMs + (passed ? 1400 : 300));
-    }
+      }
+      if (isCpuMode() && game.turn === cpuColor()) scheduleCpu(passed ? 1400 : 300);
+    }, animMs);
+  }
+
+  /** 置いたマスを中心に爆発のエフェクトを出す（盤の 1 マス＝ 12.5%）。 */
+  function showBlastFx(pos) {
+    const [r, c] = E.toRowCol(pos);
+    blastFx.hidden = true;
+    blastFx.style.left = `${(c + 0.5) * 12.5}%`;
+    blastFx.style.top = `${(r + 0.5) * 12.5}%`;
+    void blastFx.offsetWidth; // アニメーションを再始動させる
+    blastFx.hidden = false;
+    els.tray.classList.remove('shake');
+    void els.tray.offsetWidth;
+    els.tray.classList.add('shake');
+  }
+
+  function hideBlastFx() {
+    if (blastFx) blastFx.hidden = true;
+    els.tray.classList.remove('shake');
+    for (const { cell } of cells.values()) cell.classList.remove('blasted');
   }
 
   /**
@@ -365,7 +453,7 @@
     updateUndoButton();
     later(() => {
       const token = game.token;
-      const move = AI.chooseMove(game.board, game.turn, settings.level);
+      const move = AI.chooseMove(game.board, game.turn, settings.level, { rules: game.rules });
       if (token !== game.token) return;
       if (move != null) playMove(move);
     }, delay);
@@ -400,13 +488,16 @@
   function render(opts) {
     const o = opts || {};
     const delays = o.delays || new Map();
+    const board = o.board || game.board; // アニメーションの途中は、途中の盤面を見せる
+    const blasted = o.blasted || null;
+    const followed = o.followed || null;
     if (o.instant) els.board.classList.add('instant');
 
     const hints =
       settings.hints && isHumanTurn() ? new Set(E.legalMoves(game.board, game.turn)) : new Set();
 
     for (const [pos, { cell, wrap, disc }] of cells) {
-      const v = game.board[pos];
+      const v = board[pos];
       if (v === EMPTY) {
         wrap.classList.add('empty');
         wrap.classList.remove('pop');
@@ -421,6 +512,8 @@
           wrap.classList.add('pop');
         }
       }
+      if (blasted) cell.classList.toggle('blasted', blasted.has(pos));
+      if (followed) cell.classList.toggle('followed', followed.has(pos));
       cell.classList.toggle('hint', hints.has(pos));
       cell.classList.toggle('last', pos === game.lastMove);
       cell.setAttribute('aria-label', cellLabel(pos, v, hints.has(pos)));
@@ -431,7 +524,7 @@
       els.board.classList.remove('instant');
     }
 
-    const count = E.countDiscs(game.board);
+    const count = E.countDiscs(board);
     els.countBlack.textContent = String(count.black);
     els.countWhite.textContent = String(count.white);
     els.playerBlack.classList.toggle('active', !game.over && game.turn === BLACK);

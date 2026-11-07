@@ -7,6 +7,10 @@ const AI = require('../js/ai.js');
 
 const { BLACK, WHITE, EMPTY, toPos } = E;
 
+/** 爆裂ルール（爆裂連鎖なし）と、爆裂連鎖ありのルール。 */
+const BLAST = E.makeRules(true, false);
+const CHAIN = E.makeRules(true, true);
+
 /** 再現可能な疑似乱数（mulberry32）。 */
 function seeded(seed) {
   let a = seed >>> 0;
@@ -32,7 +36,7 @@ function playGame(chooseBlack, chooseWhite, followUp) {
       passes++;
     } else {
       assert.ok(E.isLegal(b, move, turn), '合法手を返す');
-      E.applyMove(b, move, turn, followUp);
+      E.applyMove(b, move, turn, followUp ? CHAIN : BLAST);
       passes = 0;
       plies++;
     }
@@ -59,7 +63,7 @@ test('初手：はさんだ石は爆風で元に戻り、まわりの石がす�
   const b = E.createBoard();
   const before = E.cloneBoard(b);
   // 黒が (2,3) に打つと (3,3) の白をはさむ。まわり 8 マスの石は (3,3) 白と (3,4) 黒
-  const move = E.applyMove(b, toPos(2, 3), BLACK);
+  const move = E.applyMove(b, toPos(2, 3), BLACK, BLAST);
   assert.deepEqual(move.flips, [toPos(3, 3)]);
   assert.deepEqual(move.blast.sort(byPos), [toPos(3, 3), toPos(3, 4)]);
   assert.equal(b[toPos(2, 3)], BLACK, '打った石は自分の色のまま');
@@ -75,7 +79,7 @@ test('初手：はさんだ石は爆風で元に戻り、まわりの石がす�
 test('爆風は離れた位置の「はさんだ石」には届かない', () => {
   // 黒が (0,0) に打つと、右へ (0,1)(0,2) の白をはさむ。(0,1) は爆風で白に戻り、(0,2) は黒のまま
   const b = boardWith({ '0,1': WHITE, '0,2': WHITE, '0,3': BLACK, '1,1': BLACK });
-  const move = E.applyMove(b, toPos(0, 0), BLACK);
+  const move = E.applyMove(b, toPos(0, 0), BLACK, BLAST);
   assert.deepEqual(move.flips.sort(byPos), [toPos(0, 1), toPos(0, 2)]);
   assert.equal(b[toPos(0, 0)], BLACK);
   assert.equal(b[toPos(0, 1)], WHITE);
@@ -86,7 +90,7 @@ test('爆風は離れた位置の「はさんだ石」には届かない', () =>
 
 test('隅に打つと爆風は盤の外に出ない（3 マスだけ）', () => {
   const b = boardWith({ '0,1': BLACK, '1,0': WHITE, '1,1': WHITE, '2,2': BLACK });
-  const move = E.applyMove(b, toPos(0, 0), BLACK);
+  const move = E.applyMove(b, toPos(0, 0), BLACK, BLAST);
   assert.deepEqual(move.flips, [toPos(1, 1)]);
   assert.deepEqual(move.blast.sort(byPos), [toPos(0, 1), toPos(1, 0), toPos(1, 1)].sort(byPos));
   assert.equal(b[toPos(0, 1)], WHITE);
@@ -101,8 +105,8 @@ test('隅に打つと爆風は盤の外に出ない（3 マスだけ）', () => 
 test('打てないマスへの着手は null を返し、盤面を変えない', () => {
   const b = E.createBoard();
   const before = E.cloneBoard(b);
-  assert.equal(E.applyMove(b, toPos(0, 0), BLACK), null);
-  assert.equal(E.applyMove(b, toPos(3, 3), BLACK), null, '石のあるマス');
+  assert.equal(E.applyMove(b, toPos(0, 0), BLACK, BLAST), null);
+  assert.equal(E.applyMove(b, toPos(3, 3), BLACK, BLAST), null, '石のあるマス');
   assert.deepEqual(b, before);
 });
 
@@ -120,7 +124,7 @@ test('複数方向をまとめて裏返してから爆風が起きる', () => {
     '4,4': WHITE, '5,5': BLACK,
     '2,2': WHITE, // はさめない向き
   });
-  const move = E.applyMove(b, toPos(3, 3), BLACK);
+  const move = E.applyMove(b, toPos(3, 3), BLACK, BLAST);
   assert.deepEqual(move.flips.sort(byPos), [toPos(3, 4), toPos(4, 3), toPos(4, 4)].sort(byPos));
   // はさんだ 3 つは隣なので爆風で白に戻る。はさめなかった (2,2) の白は爆風で黒になる
   assert.equal(b[toPos(3, 4)], WHITE);
@@ -144,7 +148,7 @@ test('ランダムな対局で、着手と取り消しを繰り返しても盤�
       } else {
         const m = moves[Math.floor(rand() * moves.length)];
         const before = E.cloneBoard(b);
-        const move = E.applyMove(b, m, turn);
+        const move = E.applyMove(b, m, turn, BLAST);
         stack.push({ m, turn, move, before });
         passes = 0;
       }
@@ -174,13 +178,13 @@ test('爆裂連鎖：爆風で裏返った石がはさんだ石も裏返る（1 
   };
 
   const plain = boardWith(stones);
-  const plainMove = E.applyMove(plain, toPos(4, 4), BLACK);
+  const plainMove = E.applyMove(plain, toPos(4, 4), BLACK, BLAST);
   assert.deepEqual(plainMove.followUp, [], '爆裂連鎖なしのルールでは起きない');
   assert.equal(plain[toPos(2, 5)], WHITE);
 
   const b = boardWith(stones);
   const before = E.cloneBoard(b);
-  const move = E.applyMove(b, toPos(4, 4), BLACK, true);
+  const move = E.applyMove(b, toPos(4, 4), BLACK, CHAIN);
   assert.deepEqual(move.flips, [toPos(4, 5)]);
   assert.deepEqual(move.blast.sort(byPos), [toPos(3, 4), toPos(4, 5)]);
   assert.deepEqual(move.followUp, [toPos(2, 5)]);
@@ -196,7 +200,7 @@ test('爆裂連鎖：爆風で白になった石は、白として黒の石を�
   // 黒が (4,4) に打つ（下の (5,4) の白をはさむ）。爆風で (4,3) の黒が白になり、
   // 左の (4,2) の黒を (4,1) の白ではさむ
   const b = boardWith({ '5,4': WHITE, '6,4': BLACK, '4,3': BLACK, '4,2': BLACK, '4,1': WHITE });
-  const move = E.applyMove(b, toPos(4, 4), BLACK, true);
+  const move = E.applyMove(b, toPos(4, 4), BLACK, CHAIN);
   assert.deepEqual(move.followUp, [toPos(4, 2)]);
   assert.equal(b[toPos(4, 3)], WHITE);
   assert.equal(b[toPos(4, 2)], WHITE);
@@ -207,7 +211,7 @@ test('爆裂連鎖：打った石も、はさまれれば裏返る', () => {
   // 黒が (4,4) に打つ。爆風で (4,3) の黒と (4,5) の黒（はさんだ石）が白になり、
   // 白になった (4,3) と (4,5) が、あいだの (4,4) の黒をはさむ
   const b = boardWith({ '4,5': WHITE, '4,6': BLACK, '4,3': BLACK });
-  const move = E.applyMove(b, toPos(4, 4), BLACK, true);
+  const move = E.applyMove(b, toPos(4, 4), BLACK, CHAIN);
   assert.deepEqual(move.followUp, [toPos(4, 4)]);
   assert.equal(b[toPos(4, 4)], WHITE);
   E.undoMove(b, toPos(4, 4), BLACK, move);
@@ -220,14 +224,14 @@ test('爆裂連鎖：判定は爆風の直後の盤面でまとめて行うの�
   // 白になった (4,3) は上の (3,3) の黒を (2,3) の白ではさむ。
   // 爆風で裏返った石どうしで、はさむ側とはさまれる側が入れかわるが、どちらの判定も爆風直後の盤面で行う
   const b = boardWith({ '5,4': WHITE, '6,4': BLACK, '3,4': WHITE, '4,3': BLACK, '5,2': BLACK, '3,3': BLACK, '2,3': WHITE });
-  const move = E.applyMove(b, toPos(4, 4), BLACK, true);
+  const move = E.applyMove(b, toPos(4, 4), BLACK, CHAIN);
   assert.deepEqual(move.blast.sort(byPos), [toPos(3, 3), toPos(3, 4), toPos(4, 3), toPos(5, 4)]);
   // (3,3) も爆風で白になるため、(4,3) が (3,3) をはさむことはない。結果は (4,3) だけが黒に戻る
   assert.deepEqual(move.followUp.sort(byPos), [toPos(4, 3)]);
   assert.equal(b[toPos(4, 3)], BLACK);
   // sources の順番を逆にしても同じ結果になる
   const c = boardWith({ '5,4': WHITE, '6,4': BLACK, '3,4': WHITE, '4,3': BLACK, '5,2': BLACK, '3,3': BLACK, '2,3': WHITE });
-  E.applyMove(c, toPos(4, 4), BLACK, false);
+  E.applyMove(c, toPos(4, 4), BLACK, BLAST);
   const reversed = E.getFollowUp(c, move.blast.slice().reverse());
   assert.deepEqual(reversed.sort(byPos), move.followUp);
   assert.deepEqual(c, b);
@@ -250,8 +254,8 @@ test('爆裂連鎖：ランダムな対局で、取り消すと元に戻り、�
         const before = E.cloneBoard(b);
         // 順番を逆にして判定した結果と比べる
         const other = E.cloneBoard(b);
-        const plain = E.applyMove(other, m, turn, false);
-        const move = E.applyMove(b, m, turn, true);
+        const plain = E.applyMove(other, m, turn, BLAST);
+        const move = E.applyMove(b, m, turn, CHAIN);
         E.getFollowUp(other, plain.blast.slice().reverse());
         assert.deepEqual(other, b);
         assert.equal(new Set(move.followUp).size, move.followUp.length, '同じ石は 2 回裏返らない');
@@ -273,7 +277,7 @@ test('爆裂連鎖：ランダムな対局で、取り消すと元に戻り、�
 test('爆裂連鎖ありのルールでも、全レベルの CPU が最後まで合法手で対局できる', () => {
   for (let level = 1; level <= AI.MAX_LEVEL; level++) {
     const rand = seeded(level + 100);
-    const cpu = (b, p) => AI.chooseMove(b, p, level, { random: rand, timeLimitMs: 100, followUp: true });
+    const cpu = (b, p) => AI.chooseMove(b, p, level, { random: rand, timeLimitMs: 100, rules: CHAIN });
     const final = playGame(cpu, cpu, true);
     assert.ok(E.isGameOver(final));
   }
@@ -282,7 +286,7 @@ test('爆裂連鎖ありのルールでも、全レベルの CPU が最後まで
 test('全レベルの CPU が最後まで合法手で対局できる', () => {
   for (let level = 1; level <= AI.MAX_LEVEL; level++) {
     const rand = seeded(level);
-    const cpu = (b, p) => AI.chooseMove(b, p, level, { random: rand, timeLimitMs: 150 });
+    const cpu = (b, p) => AI.chooseMove(b, p, level, { random: rand, timeLimitMs: 150, rules: BLAST });
     const final = playGame(cpu, cpu);
     assert.ok(E.isGameOver(final));
   }
@@ -290,9 +294,9 @@ test('全レベルの CPU が最後まで合法手で対局できる', () => {
 
 test('chooseMove は渡した盤面を書き換えない', () => {
   const b = E.createBoard();
-  E.applyMove(b, toPos(2, 3), BLACK);
+  E.applyMove(b, toPos(2, 3), BLACK, BLAST);
   const before = E.cloneBoard(b);
-  AI.chooseMove(b, WHITE, 10, { timeLimitMs: 200 });
+  AI.chooseMove(b, WHITE, 10, { timeLimitMs: 200, rules: BLAST });
   assert.deepEqual(b, before);
 });
 
@@ -308,7 +312,7 @@ function bruteForce(b, p, passed) {
   }
   let best = -Infinity;
   for (const m of moves) {
-    const mv = E.applyMove(b, m, p);
+    const mv = E.applyMove(b, m, p, BLAST);
     best = Math.max(best, -bruteForce(b, 3 - p, false));
     E.undoMove(b, m, p, mv);
   }
@@ -324,19 +328,19 @@ test('終盤の完全読みは総当たりと同じ石差になる手を選ぶ',
     let turn = BLACK;
     let passes = 0;
     while (E.countDiscs(b).empty > 9 && passes < 2) {
-      const m = AI.chooseMove(b, turn, 1, { random: rand });
+      const m = AI.chooseMove(b, turn, 1, { random: rand, rules: BLAST });
       if (m == null) passes++;
       else {
-        E.applyMove(b, m, turn);
+        E.applyMove(b, m, turn, BLAST);
         passes = 0;
       }
       turn = 3 - turn;
     }
     if (E.countMoves(b, turn) < 2) continue;
     const best = bruteForce(E.cloneBoard(b), turn, false);
-    const move = AI.chooseMove(b, turn, 10, { timeLimitMs: 5000 });
+    const move = AI.chooseMove(b, turn, 10, { timeLimitMs: 5000, rules: BLAST });
     const after = E.cloneBoard(b);
-    E.applyMove(after, move, turn);
+    E.applyMove(after, move, turn, BLAST);
     assert.equal(-bruteForce(after, 3 - turn, false), best);
     checked++;
   }
@@ -348,8 +352,8 @@ test('レベル10はレベル1（ランダム）に勝ち越す', () => {
   let wins = 0;
   const games = 4;
   for (let i = 0; i < games; i++) {
-    const strong = (b, p) => AI.chooseMove(b, p, 10, { random: rand, timeLimitMs: 150 });
-    const weak = (b, p) => AI.chooseMove(b, p, 1, { random: rand });
+    const strong = (b, p) => AI.chooseMove(b, p, 10, { random: rand, timeLimitMs: 150, rules: BLAST });
+    const weak = (b, p) => AI.chooseMove(b, p, 1, { random: rand, rules: BLAST });
     const strongIsBlack = i % 2 === 0;
     const final = strongIsBlack ? playGame(strong, weak) : playGame(weak, strong);
     const c = E.countDiscs(final);

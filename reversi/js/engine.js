@@ -1,6 +1,12 @@
 /**
  * リバーシのルールエンジン。
  *
+ * 通常のリバーシに加えて、オプションのルール（rules）を選べる：
+ * - rules.blast（爆裂）：打てるマスとはさんだ石の裏返し方は通常どおり。そのあと「爆風」で、打ったマスのまわり 8 マスにある石を、色に関係なくすべて裏返す
+ *   （はさんで裏返したばかりの石も、隣にあればもう一度裏返って元の色に戻る。空きマスは変わらない）
+ * - rules.followUp（爆裂連鎖。爆裂ありのときだけ有効）：爆風で裏返った石が新しい色で相手の石をはさんでいれば、それも裏返す。
+ *   判定は 1 回だけで、爆裂連鎖で裏返った石からはもう判定しない（getFollowUp を参照）
+ *
  * 盤面は 10x10 の Int8Array（外周 1 マスを壁とする）で表現する。
  * 盤上のマス (row, col) のインデックスは (row + 1) * 10 + (col + 1)。
  * 壁を置くことで、方向ごとの走査で範囲チェックを省略できる。
@@ -97,20 +103,75 @@
     return n;
   }
 
-  /** 盤面を直接書き換えて着手する。裏返した石の一覧を返す（undoMove 用）。 */
-  function applyMove(b, pos, player) {
+  /** pos のまわり 8 マスのうち、石が置かれているマスの一覧（爆風で裏返るマス）。 */
+  function getBlast(b, pos) {
+    const blast = [];
+    for (const d of DIRS) {
+      const q = pos + d;
+      if (b[q] === BLACK || b[q] === WHITE) blast.push(q);
+    }
+    return blast;
+  }
+
+  /**
+   * 爆裂連鎖：爆風で裏返った石（sources）それぞれについて、新しい色で 8 方向にはさめる相手の石を探し、
+   * まとめて裏返す（通常のリバーシで、その石を置いたときと同じ判定）。裏返した石の一覧を返す。
+   *
+   * - 判定は 1 回だけ。爆裂連鎖で裏返った石が、さらに別の石をはさんでも裏返さない
+   * - すべての判定は爆風の直後の盤面で行い、そのあとでまとめて裏返す。
+   *   そのため、どの石から判定しても結果は同じになる（判定の途中で盤面が変わらない）
+   * - 白の石がはさむのは黒の石、黒の石がはさむのは白の石だけなので、
+   *   同じ石を黒にする判定と白にする判定がぶつかることはない
+   */
+  function getFollowUp(b, sources) {
+    const hit = new Set();
+    for (const s of sources) {
+      const me = b[s];
+      const opp = 3 - me;
+      for (const d of DIRS) {
+        let q = s + d;
+        while (b[q] === opp) q += d;
+        if (b[q] !== me) continue;
+        for (let x = s + d; x !== q; x += d) hit.add(x);
+      }
+    }
+    const flipped = [...hit];
+    for (const q of flipped) b[q] = 3 - b[q];
+    return flipped;
+  }
+
+  /**
+   * 盤面を直接書き換えて着手する。
+   * 打てないマスなら盤面を変えずに null を返す。
+   * 打てたら { flips, blast, followUp } を返す
+   * （flips：はさんで裏返した石、blast：爆風で裏返した石、followUp：爆裂連鎖で裏返した石）。
+   * rules は { blast?: boolean, followUp?: boolean }。省略すると通常のリバーシ（blast と followUp は常に []）。
+   * followUp は blast が true のときだけ効く。
+   * 戻り値は undoMove に渡すと着手を取り消せる。
+   */
+  function applyMove(b, pos, player, rules) {
     const flips = getFlips(b, pos, player);
-    if (flips.length === 0) return flips;
+    if (flips.length === 0) return null;
     b[pos] = player;
     for (const q of flips) b[q] = player;
-    return flips;
+    if (!rules || !rules.blast) return { flips, blast: [], followUp: [] };
+    const blast = getBlast(b, pos);
+    for (const q of blast) b[q] = 3 - b[q];
+    return { flips, blast, followUp: rules.followUp ? getFollowUp(b, blast) : [] };
+  }
+
+  /** 設定値から、applyMove に渡すルールを作る（爆裂なしなら爆裂連鎖も無効にする）。 */
+  function makeRules(blast, followUp) {
+    return { blast: !!blast, followUp: !!blast && !!followUp };
   }
 
   /** applyMove を取り消す。 */
-  function undoMove(b, pos, player, flips) {
-    b[pos] = EMPTY;
+  function undoMove(b, pos, player, move) {
+    for (const q of move.followUp) b[q] = 3 - b[q];
+    for (const q of move.blast) b[q] = 3 - b[q];
     const opp = 3 - player;
-    for (const q of flips) b[q] = opp;
+    for (const q of move.flips) b[q] = opp;
+    b[pos] = EMPTY;
   }
 
   function countDiscs(b) {
@@ -142,10 +203,13 @@
     createBoard,
     cloneBoard,
     getFlips,
+    getBlast,
+    getFollowUp,
     isLegal,
     legalMoves,
     countMoves,
     applyMove,
+    makeRules,
     undoMove,
     countDiscs,
     isGameOver,

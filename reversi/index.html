@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#6ccbf4">
+  <meta name="description" content="CPU対戦と2人対戦ができるリバーシ。置くと周りの8マスが爆風でひっくり返る「爆裂」ルールも選べる">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,9 +23,11 @@
         <header class="hero">
           <div class="hero-discs" aria-hidden="true">
             <span class="hero-disc"><span class="face black"></span><span class="face white"></span></span>
+            <span class="hero-boom">💥</span>
             <span class="hero-disc"><span class="face black"></span><span class="face white"></span></span>
           </div>
-          <h1 class="logo">リバーシ</h1>
+          <h1 class="logo"><span class="logo-sub">ばくれつ</span>リバーシ</h1>
+          <p class="rule-note" id="blast-note">おくと まわりの 8マスが<br>ばくはつで ひっくりかえる！</p>
         </header>
 
         <form id="menu" class="menu">
@@ -65,6 +68,9 @@
             <legend class="visually-hidden">せってい</legend>
             <label class="chip"><input type="checkbox" name="hints"><span>ヒントを だす</span></label>
             <label class="chip"><input type="checkbox" name="sound"><span>おとを ならす</span></label>
+            <label class="chip"><input type="checkbox" name="blast"><span>💥 爆裂 あり</span></label>
+            <label class="chip" id="follow-up-chip"><input type="checkbox" name="followUp"><span>爆裂連鎖 あり</span></label>
+            <p class="follow-note" id="follow-note">ばくはつで かわった いしが はさむと、それも ひっくりかえる！</p>
           </fieldset>
 
           <button type="submit" class="btn primary start-btn">はじめる！</button>
@@ -95,7 +101,7 @@
       <p class="bubble" id="status" aria-live="polite"></p>
 
       <div class="board-wrap">
-        <div class="tray">
+        <div class="tray" id="tray">
           <div class="board" id="board" role="grid" aria-label="ばんめん"></div>
         </div>
         <div class="toast" id="toast" role="status" hidden></div>
