@@ -297,7 +297,7 @@
 
   // ------------------------------------------------------------ ヒント・語り
 
-  /** 語り（地の文）。設定の「もじ」が OFF のときは読み上げだけにする。 */
+  /** 遊び方の案内（語り手の声）。設定の「もじ」が OFF のときは読み上げだけにする。 */
   function showCaption(text) {
     hideBubble();
     if (!settings.text) {
@@ -591,19 +591,17 @@
       renderOutdoor(null);
       [1, 2, 3].forEach((n, i) => addPig(n, 380 + i * 90, 'happy').classList.add('bounce'));
     });
-    await d.say('narrator', 'むかし むかし、3びきの こぶたが いました。');
-    pigs().forEach((p) => p.classList.remove('bounce'));
-    await d.say('narrator', 'おおきく なった こぶたたちは、じぶんの おうちを つくる ことに しました。');
-    pigs().forEach((p) => pigMood(p, null));
+    await d.wait(1600);
+    pigs().forEach((p) => { p.classList.remove('bounce'); pigMood(p, null); });
     Sound.run();
     await d.all([walkTo(A.pig1, 1150, 1400), walkTo(A.pig2, 1200, 1300), walkTo(A.pig3, 1250, 1200)]);
     await enterBuild(d, 'straw');
   }
 
   const BUILD_LINES = {
-    straw: ['1ぴきめの こぶたは、わらで おうちを つくります。', 'わらを タッチしてね！'],
-    wood: ['2ひきめの こぶたは、きで おうちを つくります。', 'きを タッチしてね！'],
-    brick: ['3びきめの こぶたは、レンガで おうちを つくります。じかんは かかるけど、とっても じょうぶ！', 'レンガを タッチしてね！'],
+    straw: 'わらを タッチしてね！',
+    wood: 'きを タッチしてね！',
+    brick: 'レンガを タッチしてね！',
   };
 
   async function enterBuild(d, type) {
@@ -627,10 +625,8 @@
       await d.all(arrivals.map(([n, x], i) => walkTo(A['pig' + n], x, 1500 + i * 150)));
       arrivals.forEach(([n]) => pigMood(A['pig' + n], null));
     }
-    const [narration, ask] = BUILD_LINES[type];
-    await d.say('narrator', narration);
     hop(A['pig' + cfg.builder]);
-    await d.say('pig' + cfg.builder, ask);
+    await d.say('pig' + cfg.builder, BUILD_LINES[type]);
     showPrompt(true);
   }
 
@@ -677,12 +673,6 @@
     await enterBlow(d, type, false);
   }
 
-  const WOLF_COMES = {
-    straw: 'そこへ、おなかを すかせた おおかみが やってきました。',
-    wood: 'また おおかみが やってきました。',
-    brick: 'またまた おおかみが やってきました。',
-  };
-
   async function enterBlow(d, type, jumped) {
     const cfg = HOUSE_PIGS[type];
     if (jumped) {
@@ -697,7 +687,7 @@
     addWolf(-260);
     Sound.wolfIn();
     await d.run(walkTo(A.wolf, WOLF_X, 2000));
-    await d.say('narrator', WOLF_COMES[type]);
+    await d.wait(300);
     // こぶたたちは あわてて おうちの なかへ
     pigs().forEach((p) => pigMood(p, 'scared'));
     Sound.run();
@@ -758,15 +748,11 @@
     await d.wait(900);
     wolfMood();
     const many = type !== 'straw';
-    await d.say('narrator', many ? 'きの おうちも、ふきとんで しまいました！' : 'わらの おうちは、ふきとんで しまいました！');
     await d.say(many ? 'pigs' : 'pig1', many ? 'にげろー！' : 'たすけてー！');
     Sound.run();
     await d.all(pigs().map((p, i) => walkTo(p, 1150 + i * 60, 900 + i * 100)));
     await d.say('wolf', 'まてー！');
     await d.run(walkTo(A.wolf, 1300, 1300));
-    await d.say('narrator', many
-      ? '2ひきの こぶたは、3びきめの こぶたの ところへ にげました。'
-      : '1ぴきめの こぶたは、2ひきめの こぶたの ところへ にげました。');
     await enterBuild(d, many ? 'brick' : 'wood');
   }
 
@@ -778,7 +764,6 @@
     ], { duration: 400 }));
     wolfMood();
     if (ev.index === 0) {
-      await d.say('narrator', 'あれれ？ レンガの おうちは びくとも しないよ！');
       await d.say('wolf', 'ぐぬぬ… もういっかい！');
     } else {
       await d.say('wolf', 'まだまだ！ もっと つよく ふーっ！');
@@ -794,7 +779,6 @@
     ], { duration: 400 }));
     wolfMood('tired');
     Sound.tired();
-    await d.say('narrator', 'なんど ふいても、レンガの おうちは ふきとびません！');
     await d.say('wolf', 'はあ、はあ… こうなったら、えんとつから はいってやる！');
     wolfMood();
     // やねに のぼって えんとつへ
@@ -807,7 +791,7 @@
     await d.run(moveTo(A.wolf, ridge[0], ridge[1], 450, 'linear'));
     await d.run(moveTo(A.wolf, chimney[0], chimney[1], 350, 'linear'));
     A.wolf.classList.remove('walking');
-    await d.say('narrator', 'たいへん！ おおかみが やねに のぼったよ！');
+    await d.wait(400);
     await d.say('pig3', 'いまの うちに、おなべに おゆを わかそう！');
     await enterFill(d);
   }
@@ -818,7 +802,6 @@
       INDOOR_PIGS.forEach(([n, x]) => addPig(n, x));
       A.pitcher = el(layer.actors, 'actor pitcher', Art.pitcher(), 290, 392, 1);
     });
-    await d.say('narrator', 'こぶたたちは、だんろに おおきな おなべを かけました。');
     hop(A.pig3);
     await d.say('pig3', 'おみずを タッチして、おなべに いれてね！');
     showPrompt(true);
@@ -852,8 +835,8 @@
     Sound.boil();
     fadeOut(A.pitcher, 400);
     await d.wait(600);
-    await d.say('narrator', 'ぐつぐつ ぐつぐつ… おゆが わいたよ！');
     pigs().forEach((p) => pigMood(p, 'happy'));
+    await d.wait(1200);
     await d.say('wolf', 'よーし、えんとつから はいるぞー！');
     // おおかみが えんとつを すべりおりてくる。だんろの口より上（えんとつの中）は見えないよう切り抜く
     const chute = el(layer.actors, '', '');
@@ -884,7 +867,6 @@
       await d.run(walkTo(A.wolf, 190, 380));
     }
     face(A.wolf, 1);
-    await d.say('narrator', 'おおかみは、おしりを やけどして しまいました。');
     await enterEnding(d);
   }
 
@@ -918,9 +900,9 @@
     });
     confetti(40);
     floatHearts(HOUSE_X, 380, 6);
-    await d.say('narrator', 'それから みんなは、なかよく くらしました。');
+    await d.wait(1800);
     floatHearts(HOUSE_X + 120, 380, 5);
-    await d.say('narrator', 'めでたし、めでたし。');
+    await d.wait(1500);
     Sound.fanfare();
     confetti(50);
     hideCaption();
@@ -1120,7 +1102,7 @@
     Voice.setVoice(settings.voiceName);
     // 選んだ声をその場で試しに聞かせる
     Voice.cancel();
-    Voice.say('むかし むかし、3びきの こぶたが いました。', 'narrator');
+    Voice.say('こぶたくん、いれておくれ！', 'wolf');
   });
 
   // ------------------------------------------------------------ はじまり
