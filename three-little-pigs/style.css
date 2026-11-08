@@ -93,20 +93,18 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--ink); outl
 .piece, .pile-item, .gust, .fx-item { transform-box: fill-box; transform-origin: center; }
 .house-shake { transform-box: fill-box; transform-origin: 50% 100%; }
 
-/* 雲と太陽 */
-.cloud { animation: drift 26s ease-in-out infinite alternate; }
-.cloud.c2 { animation-duration: 34s; animation-delay: -8s; }
-.cloud.c3 { animation-duration: 30s; animation-delay: -14s; }
-@keyframes drift { to { translate: 60px 0; } }
 
 
 /* ------------------------------------------------------------ こぶた */
 
-.pig .p-eye-h, .pig .p-eye-s, .pig .p-mouth-h, .pig .p-mouth-s, .pig .p-sweat { display: none; }
-.pig--happy .p-eye-n, .pig--happy .p-mouth-n { display: none; }
-.pig--happy .p-eye-h, .pig--happy .p-mouth-h { display: inline; }
-.pig--scared .p-eye-n, .pig--scared .p-mouth-n { display: none; }
-.pig--scared .p-eye-s, .pig--scared .p-mouth-s, .pig--scared .p-sweat { display: inline; }
+/* 表情は、表情ごとの画像を重ねておき、見せる 1 枚だけ不透明にする
+   （display: none だと切り替えた瞬間に画像の読みこみで一瞬消えることがあるため） */
+.actor .face { opacity: 0; }
+.actor .face-n { opacity: 1; }
+.pig .p-sweat { display: none; }
+.pig--happy .face-n, .pig--scared .face-n { opacity: 0; }
+.pig--happy .face-happy, .pig--scared .face-scared { opacity: 1; }
+.pig--scared .p-sweat { display: inline; }
 
 .pig .a-body { animation: breathe 2.4s ease-in-out infinite; }
 .pig--scared .a-body { animation: tremble .18s linear infinite; }
@@ -129,27 +127,18 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--ink); outl
 
 /* ------------------------------------------------------------ おおかみ */
 
-.wolf .w-alt,
-.wolf .w-ear-down, .wolf .w-eye-x, .wolf .w-eye-h, .wolf .w-brow-sad,
-.wolf .w-mouth-o, .wolf .w-mouth-sad, .wolf .w-mouth-smile, .wolf .w-mouth-open,
-.wolf .w-blush, .wolf .w-sweat, .wolf .w-tear, .wolf .w-hot, .wolf .w-bandage { display: none; }
+.wolf .w-sweat, .wolf .w-tear, .wolf .w-hot, .wolf .w-bandage { display: none; }
 
 .wolf .a-body { animation: breathe 2s ease-in-out infinite; }
-.wolf .w-cheek {
-  transform-box: fill-box;
-  transform-origin: center;
-  scale: calc(var(--puff, 0) * 1.25);
-  transition: scale .08s linear;
-}
 
-.wolf--puff .w-mouth-grin { display: none; }
-.wolf--puff .w-mouth-o { display: inline; }
+/* ほっぺをふくらませた顔は、マイクの息の強さ（--puff）に合わせてじわっと重ねる */
+.wolf .face-puff { opacity: var(--puff, 0); transition: opacity .08s linear; }
 .wolf--puff { --puff: 1 !important; }
 
-.wolf--blow .w-mouth-grin { display: none; }
-.wolf--blow .w-mouth-o { display: inline; }
-.wolf--blow .w-eye-n { display: none; }
-.wolf--blow .w-eye-x { display: inline; }
+.wolf--blow .face-n, .wolf--tired .face-n, .wolf--hot .face-n, .wolf--sorry .face-n, .wolf--happy .face-n { opacity: 0; }
+.wolf--blow .face-blow, .wolf--tired .face-tired, .wolf--hot .face-hot,
+.wolf--sorry .face-sorry, .wolf--happy .face-happy { opacity: 1; }
+
 .wolf--blow .a-body { animation: blowpush .9s ease-out; }
 @keyframes blowpush {
   0% { translate: 0 0; }
@@ -157,25 +146,17 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--ink); outl
   100% { translate: 0 0; }
 }
 
-.wolf--tired .w-eye-n, .wolf--tired .w-brow-sly, .wolf--tired .w-mouth-grin { display: none; }
-.wolf--tired .w-eye-x, .wolf--tired .w-brow-sad, .wolf--tired .w-mouth-o, .wolf--tired .w-sweat { display: inline; }
+.wolf--tired .w-sweat { display: inline; }
 .wolf--tired .a-body { animation: pant .5s ease-in-out infinite; }
 @keyframes pant {
   0%, 100% { scale: 1 1; }
   50% { scale: 1.03 .96; }
 }
 
-.wolf--hot .w-eye-n, .wolf--hot .w-brow-sly, .wolf--hot .w-mouth-grin { display: none; }
-.wolf--hot .w-eye-x, .wolf--hot .w-brow-sad, .wolf--hot .w-mouth-open,
 .wolf--hot .w-hot, .wolf--hot .w-tear, .wolf--hot .w-sweat { display: inline; }
 .wolf--hot .w-steam { animation: steam .6s ease-in-out infinite; }
 
-.wolf--sorry .w-ear-up, .wolf--sorry .w-brow-sly, .wolf--sorry .w-mouth-grin { display: none; }
-.wolf--sorry .w-ear-down, .wolf--sorry .w-brow-sad, .wolf--sorry .w-mouth-sad,
-.wolf--sorry .w-blush, .wolf--sorry .w-tear { display: inline; }
-
-.wolf--happy .w-eye-n, .wolf--happy .w-brow-sly, .wolf--happy .w-mouth-grin { display: none; }
-.wolf--happy .w-eye-h, .wolf--happy .w-mouth-smile, .wolf--happy .w-blush { display: inline; }
+.wolf--sorry .w-tear { display: inline; }
 .wolf--bandage .w-bandage { display: inline; }
 
 /* ------------------------------------------------------------ だんろ・おなべ */
@@ -183,7 +164,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--ink); outl
 .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flicker .5s ease-in-out infinite alternate; }
 .flame.f2 { animation-duration: .37s; }
 .fire { transform-box: fill-box; transform-origin: 50% 100%; transition: scale .6s cubic-bezier(.3, 1.6, .5, 1); }
-.fire.big { scale: 1.5; }
+.fire.big { scale: 1.2; }
 @keyframes flicker {
   from { scale: 1 1; }
   to { scale: .9 1.12; }
@@ -691,5 +672,5 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--ink); outl
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cloud, .play, .prompt-mic svg, .room-glow { animation: none; }
+  .play, .prompt-mic svg, .room-glow { animation: none; }
 }

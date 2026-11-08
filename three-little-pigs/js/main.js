@@ -28,10 +28,10 @@
   /** 家ごとの、家をつくるこぶたと、そこにいるこぶたの位置。 */
   const HOUSE_PIGS = {
     straw: { builder: 1, pigs: [[1, 690]] },
-    wood: { builder: 2, pigs: [[2, 672], [1, 752]] },
-    brick: { builder: 3, pigs: [[3, 650], [2, 712], [1, 774]] },
+    wood: { builder: 2, pigs: [[2, 668], [1, 756]] },
+    brick: { builder: 3, pigs: [[3, 628], [2, 702], [1, 776]] },
   };
-  const INDOOR_PIGS = [[3, 640], [2, 705], [1, 770]];
+  const INDOOR_PIGS = [[3, 628], [2, 702], [1, 776]];
 
 
   const $ = (id) => document.getElementById(id);
@@ -290,7 +290,7 @@
     layer.bg.innerHTML = Art.indoor();
     layer.props.innerHTML = Art.fireplaceBack();
     layer.front.innerHTML = Art.fireplaceFront();
-    A.water = layer.props.querySelector('.water');
+    A.water = layer.front.querySelector('.water');
     A.fire = layer.props.querySelector('.fire');
     A.water.style.setProperty('--fill', '0');
   }
@@ -497,8 +497,8 @@
   /** オオカミの口から家に向かって風を吹かせる。 */
   function gust() {
     const w = A.wolf;
-    const x = w._pos.x + 88 * w._pos.s;
-    const y = w._pos.y - 128 * w._pos.s;
+    const x = w._pos.x + Art.WOLF_MOUTH.x * w._pos.s;
+    const y = w._pos.y + Art.WOLF_MOUTH.y * w._pos.s;
     const g = el(layer.fx, '', Art.wind(), x, y, 1);
     const gusts = g.querySelectorAll('.gust');
     const runs = Array.from(gusts).map((p, i) => tween(p, [
@@ -652,8 +652,7 @@
         { transform: 'translate(0, 0) scale(1.06, .92)', opacity: 1, offset: 0.65 },
         { transform: 'translate(0, 0) scale(1)', opacity: 1 },
       ], { duration: 440, easing: 'ease-in' }).then(() => {
-        const b = pc.getBBox();
-        burst(b.x + b.width / 2, b.y + b.height, 5, 'star');
+        burst(Number(pc.dataset.x), Number(pc.dataset.y), 5, 'star');
       });
     }
     hop(A['pig' + HOUSE_PIGS[ev.house].builder], 18);
@@ -802,10 +801,11 @@
     await d.run(walkTo(A.wolf, 330, 600));
     A.wolf.classList.add('airborne');
     Sound.climb();
-    await d.run(jumpTo(A.wolf, 410, 334, 90, 650));
+    const [roof, ridge, chimney] = Art.ROOF_PATH;
+    await d.run(jumpTo(A.wolf, roof[0], roof[1], 90, 650));
     A.wolf.classList.add('walking');
-    await d.run(moveTo(A.wolf, 462, 294, 450, 'linear'));
-    await d.run(moveTo(A.wolf, 494, 312, 350, 'linear'));
+    await d.run(moveTo(A.wolf, ridge[0], ridge[1], 450, 'linear'));
+    await d.run(moveTo(A.wolf, chimney[0], chimney[1], 350, 'linear'));
     A.wolf.classList.remove('walking');
     await d.say('narrator', 'たいへん！ おおかみが やねに のぼったよ！');
     await d.say('pig3', 'いまの うちに、おなべに おゆを わかそう！');
@@ -1126,6 +1126,13 @@
   // ------------------------------------------------------------ はじまり
 
   $('defs').innerHTML = Art.defs();
+  // 絵（画像）を先に読みこんでおく。表情を切り替えたときや場面が変わったときに、絵が一瞬消えないように
+  const preloaded = Art.images().map((src) => {
+    const im = new Image();
+    im.src = src;
+    return im;
+  });
+  void preloaded;
   updateVoiceUI();
 
   if ('ResizeObserver' in window) new ResizeObserver(fit).observe(stage);

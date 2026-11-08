@@ -36,12 +36,17 @@ gaming/
 ├── reversi/         リバーシ
 ├── three-little-pigs/ 3びきのこぶた
 ├── omiseyasan/      おみせやさんごっこ
-└── tools/voicevox/  VOICEVOX でせりふの音声ファイルをつくるスクリプト
+├── tools/voicevox/  VOICEVOX でせりふの音声ファイルをつくるスクリプト
+└── tools/imagegen/  画像生成 AI（Stable Diffusion XL）で絵をつくるスクリプト
 ```
 
 ## 音声
 
 「3びきのこぶた」と「おみせやさんごっこ」の読み上げの声は、VOICEVOX:冥鳴ひまり です。音声ファイルのつくり方は [`tools/voicevox/README.md`](tools/voicevox/README.md) を見てください。
+
+## 絵
+
+「3びきのこぶた」の絵は、画像生成 AI（Stable Diffusion XL）で作りました。つくり方は [`tools/imagegen/README.md`](tools/imagegen/README.md) を見てください。
 
 ## ゲームを追加するとき
 

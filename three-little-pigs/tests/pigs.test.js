@@ -276,3 +276,32 @@ test('読み上げるせりふすべてに、VOICEVOX の音声ファイルが�
   }
   assert.equal(VoiceLines.credit, 'VOICEVOX:冥鳴ひまり');
 });
+
+test('絵で使う画像ファイルがすべてある', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const Art = require('../js/art.js').PigsArt;
+  const files = Art.images();
+  assert.ok(files.length > 0);
+  for (const f of files) {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', f)), `画像がありません: ${f}`);
+  }
+  // 絵の文字列に出てくる画像も、すべて読みこみ対象（images()）に入っている
+  const html = [Art.pig(1), Art.pig(2), Art.pig(3), Art.wolf(), Art.house('straw'), Art.house('wood'), Art.house('brick'),
+    Art.pile('straw', 5), Art.pile('wood', 6), Art.pile('brick', 8), Art.outdoor(), Art.indoor(),
+    Art.fireplaceBack(), Art.fireplaceFront(), Art.pitcher()].join('');
+  for (const m of html.matchAll(/href="([^"]+)"/g)) {
+    assert.ok(files.includes(m[1]), `先読みの一覧にない画像: ${m[1]}`);
+  }
+});
+
+test('家の絵は、物語のパーツの数と同じ段に切り分けてある', () => {
+  const Art = require('../js/art.js').PigsArt;
+  for (const scene of Story.SCENES.filter((s) => s.kind === 'build')) {
+    const html = Art.house(scene.house);
+    const ids = [...html.matchAll(/class="piece" data-i="(\d+)"/g)].map((m) => Number(m[1]));
+    assert.deepEqual(ids, Array.from({ length: scene.pieces }, (_, i) => i), scene.house);
+    const items = [...Art.pile(scene.house, scene.pieces).matchAll(/data-k="(\d+)"/g)].map((m) => Number(m[1])).sort((a, b) => a - b);
+    assert.deepEqual(items, Array.from({ length: scene.pieces }, (_, i) => i), scene.house);
+  }
+});

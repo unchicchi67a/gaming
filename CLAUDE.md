@@ -20,7 +20,11 @@
 - `three-little-pigs/`：3歳向けの絵本ゲーム「3びきのこぶた」（ビルド不要の HTML / CSS / JavaScript）
   - リバーシと同じく `index.html` を直接開いて動かす。ES Modules は使わず通常の `<script>` で読み込む
   - 物語の進行は `js/story.js`、息の「ふーっ」判定は `js/breath.js`。どちらも画面に触れない純粋なロジックで、ブラウザと Node.js の両方から読み込める
-  - 絵は `js/art.js` で SVG 文字列として描く（画像ファイルなし）。表情は CSS クラス（`.wolf--hot` など）で切り替える
+  - 絵は `img/*.webp`（`tools/imagegen` の Stable Diffusion XL で作った水彩の絵本風の画像）を、`js/art.js` が SVG の `<image>` として置く。汗・なみだ・炎・風などの効果だけ SVG で描く
+  - 表情は表情ごとの画像を重ね、CSS クラス（`.wolf--hot` など）で見せる 1 枚を切り替える（`display: none` ではなく `opacity`。切り替えたときに一瞬消えないように）。表情ちがいは元の絵の顔のまわりだけをインペイントで描き直し、ほかの部分は元の絵と同じにしてある
+  - こぶた 3 びきは同じ絵から作り、服の色（緑）の色相だけ変えている（1：黄、2：緑、3：青）
+  - 家の絵は横に切り分けて `.piece` にしている（つくるときは下から積み上がり、ふきとぶときは段ごとに飛ぶ）
+  - 画像を差し替えたら、`art.js` の `SPRITES`・`HOUSE_IMG`・`ROOF_PATH`・`FIREPLACE`・`POT` など（画像の大きさ・足元の位置・やねの道すじ）も合わせて直し、`?scene=` で各場面の見た目を確かめること
   - マイクは HTTPS / localhost でのみ使える。タッチだけでも最後まで遊べることを保つこと
   - マイクは「ふーっ」を待つあいだ（`showPrompt` の blow 場面）だけ開き、`hidePrompt` で閉じる。スマホはマイクを開いているあいだ出力が通話用になり、声がガサガサになるため。マイクを開いたまませりふを鳴らさないこと
   - `?scene=<場面名>` で途中の場面から始められる（動作確認用）。`?micdebug` でマイクの音量と判定の基準を画面に出せる
@@ -35,6 +39,9 @@
   - お金のやりとりはまだ実装しない（ユーザーの希望）
   - `?shop=<お店の id>` でタイトルをとばして始められる（動作確認用）
   - テスト：`node --test omiseyasan/tests/shop.test.js`
+- `tools/imagegen/`：Modal の GPU で Stable Diffusion XL を動かして絵をつくるスクリプト（Python。`modal run tools/imagegen/app.py`）
+  - `--batch jobs.json` でまとめて生成。インペイント（`mask_box`）・背景の切り抜き（`cutout`、`keep_frame` で位置を保つ）に対応
+  - 切り抜く前の絵は `.imagegen-raw/` に残る（`.gitignore` 済み）
 - `tools/voicevox/`：「3びきのこぶた」と「おみせやさんごっこ」のせりふの音声を VOICEVOX でつくるスクリプト（Node.js）
   - 声はすべて「冥鳴ひまり」（ユーザーの希望）。クレジット「VOICEVOX:冥鳴ひまり」を画面と README に必ず書くこと
   - せりふは各ゲームの `js/main.js` の文字列から自動で集める（`lines.js`）。ひらがな・カタカナだけの文字列がせりふとみなされる。`${…}` の展開候補は `games.js` の `placeholders` で決める
