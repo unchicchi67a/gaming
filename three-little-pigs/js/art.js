@@ -30,7 +30,7 @@
   // height はワールド座標での高さ。
 
   const SPRITES = {
-    pig: { px: [291, 400], foot: [147.3, 399.6], height: 164 },
+    pig: { px: [243, 420], foot: [124, 419.5], height: 175 },
     wolf: { px: [284, 460], foot: [172.5, 459.5], height: 235 },
   };
 
@@ -91,7 +91,7 @@ ${lin('g-fade-h', [[0, '#000'], [0.04, '#fff'], [0.96, '#fff'], [1, '#000']], 1,
 ${shadow(52, 8)}
 <g class="a-body">
   ${faces('pig' + n, PIG_FACES, b)}
-  <g class="p-sweat">${drop(52, -150)}${drop(64, -128, 0.7)}</g>
+  <g class="p-sweat">${drop(36, -152)}${drop(46, -132, 0.7)}</g>
 </g>`;
   }
 

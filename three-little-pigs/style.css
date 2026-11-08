@@ -392,7 +392,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--ink); outl
 .bubble::after { top: calc(100% - 1px); border-width: 12px 8px 0; border-top-color: #fffdf8; }
 .bubble.wolf { --edge: #8a93a6; }
 .bubble.pig1 { --edge: var(--mustard); }
-.bubble.pig2 { --edge: var(--sage); }
+.bubble.pig2 { --edge: #e0904e; }
 .bubble.pig3 { --edge: var(--slate); }
 .bubble.pigs { --edge: var(--rose); }
 @keyframes bubble-in {
