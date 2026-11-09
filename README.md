@@ -36,8 +36,7 @@ gaming/
 ├── reversi/         リバーシ
 ├── three-little-pigs/ 3びきのこぶた
 ├── omiseyasan/      おみせやさんごっこ
-├── tools/voicevox/  VOICEVOX でせりふの音声ファイルをつくるスクリプト
-└── tools/imagegen/  画像生成 AI（Stable Diffusion XL）で絵をつくるスクリプト
+└── tools/voicevox/  VOICEVOX でせりふの音声ファイルをつくるスクリプト
 ```
 
 ## 音声
@@ -46,7 +45,7 @@ gaming/
 
 ## 絵
 
-「3びきのこぶた」の絵は、画像生成 AI（Stable Diffusion XL）で作りました。つくり方は [`tools/imagegen/README.md`](tools/imagegen/README.md) を見てください。
+「3びきのこぶた」の絵は、画像生成 AI（Stable Diffusion XL）で作りました。Modal の GPU で Stable Diffusion XL を動かすスクリプトを使っています（このリポジトリの外で管理しています）。
 
 ## ゲームを追加するとき
 

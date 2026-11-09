@@ -20,7 +20,7 @@
 - `three-little-pigs/`：3歳向けの絵本ゲーム「3びきのこぶた」（ビルド不要の HTML / CSS / JavaScript）
   - リバーシと同じく `index.html` を直接開いて動かす。ES Modules は使わず通常の `<script>` で読み込む
   - 物語の進行は `js/story.js`、息の「ふーっ」判定は `js/breath.js`。どちらも画面に触れない純粋なロジックで、ブラウザと Node.js の両方から読み込める
-  - 絵は `img/*.webp`（`tools/imagegen` の Stable Diffusion XL で作った水彩の絵本風の画像）を、`js/art.js` が SVG の `<image>` として置く。汗・なみだ・炎・風などの効果だけ SVG で描く
+  - 絵は `img/*.webp`（ユーザー単位のスキル `imagegen` の Stable Diffusion XL で作った水彩の絵本風の画像）を、`js/art.js` が SVG の `<image>` として置く。汗・なみだ・炎・風などの効果だけ SVG で描く
   - 表情は表情ごとの画像を重ね、CSS クラス（`.wolf--hot` など）で見せる 1 枚を切り替える（`display: none` ではなく `opacity`。切り替えたときに一瞬消えないように）。表情ちがいは元の絵の顔のまわりだけをインペイントで描き直し、ほかの部分は元の絵と同じにしてある
   - こぶた 3 びきは同じ絵から作り、シャツの色（オレンジ）の色相だけ変えている（1：黄、2：オレンジ、3：青）。こぶたはオオカミと同じ画風（色えんぴつ＋水彩、細い線、服を着た立ち姿）にそろえている。吹き出しのふちの色（`style.css` の `.bubble.pig1〜3`）もシャツの色に合わせる
   - 家の絵は横に切り分けて `.piece` にしている（つくるときは下から積み上がり、ふきとぶときは段ごとに飛ぶ）
@@ -40,14 +40,9 @@
   - お金のやりとりはまだ実装しない（ユーザーの希望）
   - `?shop=<お店の id>` でタイトルをとばして始められる（動作確認用）
   - テスト：`node --test omiseyasan/tests/shop.test.js`
-- `tools/imagegen/`：Modal の GPU で Stable Diffusion XL を動かして絵をつくるスクリプト（Python。`modal run tools/imagegen/app.py`）
-  - `--batch jobs.json` でまとめて生成。インペイント（`mask_box`）・背景の切り抜き（`cutout`、`keep_frame` で位置を保つ）に対応
+- 絵の生成：ユーザー単位の Claude Code スキル `imagegen`（`~/.claude/skills/imagegen/`。Modal の GPU で Stable Diffusion XL を動かす）を使う。このリポジトリには入れていない
+  - 使い方と進め方（試作を見せてユーザーに選んでもらってから組み込む）はスキルの `SKILL.md` に従う
   - 切り抜く前の絵は `.imagegen-raw/` に残る（`.gitignore` 済み）
-  - 絵は全部を一気に作らないこと。自分で選んで組み込むのも禁止（ユーザーの希望）。次の順で進める：
-    1. 絵の種類ごと（画風・キャラクター・家・背景など）に試作を数枚作り、番号つきの一覧にしてユーザーに見せる
-    2. ユーザーに選んでもらう（どれもよくなければ、どこがよくないかを聞いて作り直す）
-    3. 選ばれた絵をもとに表情ちがいなどを作り、それもユーザーに見せて確認してもらう
-    4. OK が出てから、ゲームに組み込む
 - `tools/voicevox/`：「3びきのこぶた」と「おみせやさんごっこ」のせりふの音声を VOICEVOX でつくるスクリプト（Node.js）
   - 声はすべて「冥鳴ひまり」（ユーザーの希望）。クレジット「VOICEVOX:冥鳴ひまり」を画面と README に必ず書くこと
   - せりふは各ゲームの `js/main.js` の文字列から自動で集める（`lines.js`）。ひらがな・カタカナだけの文字列がせりふとみなされる。`${…}` の展開候補は `games.js` の `placeholders` で決める

@@ -1,3 +1,3 @@
-# 画像生成ツール（tools/imagegen）が残す、切り抜き前の元画像
+# 画像生成ツール（imagegen スキル）が残す、切り抜き前の元画像
 /.imagegen-raw/
 __pycache__/
