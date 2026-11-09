@@ -279,9 +279,13 @@
     layer.bg.innerHTML = Art.outdoor();
     if (type) {
       A.house = el(layer.props, 'house-shake', Art.house(type));
-      A.house.querySelectorAll('.piece').forEach((p) => {
+      const pieces = A.house.querySelectorAll('.piece');
+      pieces.forEach((p) => {
         if (Number(p.dataset.i) >= builtCount) p.style.opacity = '0';
       });
+      // 窓は、わらの家は家ができあがってから、木とレンガの家はこぶたがのぞくときに出す
+      A.windows = Array.from(A.house.querySelectorAll('.house-window'));
+      if (builtCount < pieces.length || Art.windowOverlay(type)) A.windows.forEach((w) => { w.style.opacity = '0'; });
     }
   }
 
@@ -405,6 +409,10 @@
   function hintTarget() {
     const kind = Story.currentScene(state).kind;
     if (kind === 'build' && A.pile) return { g: A.pile, x: PILE_X, y: G - 45, r: 120 };
+    if (kind === 'knock' && A.wolf) {
+      const door = Art.doorPoint(Story.currentScene(state).house);
+      return { g: A.wolf, x: door.x, y: door.y, r: 80 };
+    }
     if (kind === 'blow' && A.wolf) return { g: A.wolf, x: A.wolf._pos.x, y: G - 100, r: 125 };
     if (kind === 'fill' && A.pitcher) return { g: A.pitcher, x: A.pitcher._pos.x + 20, y: A.pitcher._pos.y - 40, r: 90 };
     return null;
@@ -568,6 +576,9 @@
       case 'straw-build': return enterBuild(d, 'straw');
       case 'wood-build': return enterBuild(d, 'wood');
       case 'brick-build': return enterBuild(d, 'brick');
+      case 'straw-knock': return enterKnock(d, 'straw', jumped);
+      case 'wood-knock': return enterKnock(d, 'wood', jumped);
+      case 'brick-knock': return enterKnock(d, 'brick', jumped);
       case 'straw-blow': return enterBlow(d, 'straw', jumped);
       case 'wood-blow': return enterBlow(d, 'wood', jumped);
       case 'brick-blow': return enterBlow(d, 'brick', jumped);
@@ -592,18 +603,17 @@
       [1, 2, 3].forEach((n, i) => addPig(n, 380 + i * 90, 'happy').classList.add('bounce'));
     });
     await d.say('narrator', 'むかし むかし、3びきの こぶたが いました。');
-    pigs().forEach((p) => p.classList.remove('bounce'));
-    await d.say('narrator', 'おおきく なった こぶたたちは、じぶんの おうちを つくる ことに しました。');
-    pigs().forEach((p) => pigMood(p, null));
+    pigs().forEach((p) => { p.classList.remove('bounce'); pigMood(p, null); });
     Sound.run();
     await d.all([walkTo(A.pig1, 1150, 1400), walkTo(A.pig2, 1200, 1300), walkTo(A.pig3, 1250, 1200)]);
     await enterBuild(d, 'straw');
   }
 
+  /** 家づくりの語り。語りのあとはせりふなしで、すぐタッチを待つ。 */
   const BUILD_LINES = {
-    straw: ['1ぴきめの こぶたは、わらで おうちを たてました。', 'わらを タッチしてね！'],
-    wood: ['2ひきめの こぶたは、きで おうちを たてました。', 'きを タッチしてね！'],
-    brick: ['3びきめの こぶたは、レンガで おうちを たてました。', 'レンガを タッチしてね！'],
+    straw: '1ぴきめの こぶたは、わらで おうちを たてました。',
+    wood: '2ひきめの こぶたは、きで おうちを たてました。',
+    brick: '3びきめの こぶたは、レンガで おうちを たてました。',
   };
 
   async function enterBuild(d, type) {
@@ -627,10 +637,7 @@
       await d.all(arrivals.map(([n, x], i) => walkTo(A['pig' + n], x, 1500 + i * 150)));
       arrivals.forEach(([n]) => pigMood(A['pig' + n], null));
     }
-    const [narration, ask] = BUILD_LINES[type];
-    await d.say('narrator', narration);
-    hop(A['pig' + cfg.builder]);
-    await d.say('pig' + cfg.builder, ask);
+    await d.say('narrator', BUILD_LINES[type]);
     showPrompt(true);
   }
 
@@ -659,60 +666,96 @@
     await d.wait(ev.index + 1 >= ev.total ? 500 : 170);
   }
 
-  const BUILT_LINES = {
-    straw: 'できた！ わらの おうち！',
-    wood: 'できた！ きの おうちは じょうぶだよ！',
-    brick: 'できた！ レンガの おうち！',
-  };
-
+  /**
+   * 家ができたあとは、せりふなしで進める：こぶたたちは家の中へ → オオカミが来てノックを待つ。
+   */
   async function onBuilt(d, type) {
-    const builder = A['pig' + HOUSE_PIGS[type].builder];
     Sound.built();
     burst(HOUSE_X, 400, 12, 'star');
     pigs().forEach((p) => { pigMood(p, 'happy'); p.classList.add('bounce'); });
     if (A.pile) fadeOut(A.pile, 400);
-    await d.say('pig' + HOUSE_PIGS[type].builder, BUILT_LINES[type]);
+    // わらの家は絵に窓がないので、できあがったら描き足した窓を出す
+    if (!Art.windowOverlay(type)) {
+      A.windows.forEach((w) => tween(w, [{ opacity: 0 }, { opacity: 1 }], { duration: 500 }));
+    }
+    await d.wait(1300);
     pigs().forEach((p) => { pigMood(p, null); p.classList.remove('bounce'); });
-    void builder;
+    await d.all(pigs().map((p, i) => walkTo(p, HOUSE_X + i * 6, 900 + i * 120)));
+    await d.all(pigs().map((p) => fadeOut(p, 250)));
+    if (A.pile) { A.pile.remove(); A.pile = null; }
+    await d.wait(400);
+    await enterKnock(d, type, false);
+  }
+
+  /** ノックするときのオオカミの位置（戸の左）。 */
+  function knockX(type) {
+    return Art.doorPoint(type).x - 64;
+  }
+
+  /** 家の外。こぶたたちは家の中（見えない）にいる。 */
+  function renderInside(type) {
+    renderOutdoor(type, 99);
+    HOUSE_PIGS[type].pigs.forEach(([n]) => { addPig(n, HOUSE_X).style.opacity = '0'; });
+  }
+
+  /** ノックの場面：オオカミが無言でやってきて、戸の前でタッチを待つ。 */
+  async function enterKnock(d, type, jumped) {
+    if (jumped) await transition(d, () => renderInside(type));
+    addWolf(-260);
+    Sound.wolfIn();
+    await d.run(walkTo(A.wolf, knockX(type), 2400));
+    showPrompt(true);
+  }
+
+  /** タッチでオオカミが「コンコンコン」。戸からはなれると、窓からこわがるこぶたたちがのぞく。 */
+  async function onKnock(d, type) {
+    hideHint();
+    const door = Art.doorPoint(type);
+    const body = A.wolf.querySelector('.a-body');
+    for (let i = 0; i < 3; i++) {
+      Sound.knock();
+      burst(door.x + rand(-8, 8), door.y + rand(-10, 10), 3, 'star');
+      await d.run(tween(body, [
+        { translate: '0 0' }, { translate: '9px -2px', offset: 0.35 }, { translate: '0 0' },
+      ], { duration: 260, easing: 'ease-out' }));
+      await d.wait(90);
+    }
+    await d.wait(400);
+    // ふきとばす位置まで下がる（窓の前をあけてから、こぶたがのぞく）
+    await d.run(moveTo(A.wolf, WOLF_X, G, 700, 'ease-out'));
+    await d.wait(200);
+    await d.run(showWindowPigs(type, true));
+    await d.wait(1200);
     await enterBlow(d, type, false);
   }
 
-  const WOLF_COMES = {
-    straw: 'そこへ、おなかを すかせた おおかみが やってきました。',
-    wood: 'また おおかみが やってきました。',
-    brick: 'またまた おおかみが やってきました。',
-  };
+  /** 窓からこわがるこぶたたちをのぞかせる（animate が false なら、すぐに出す）。 */
+  function showWindowPigs(type, animate) {
+    const boxes = Art.windowBoxes(type);
+    return Promise.all(boxes.map((box, i) => {
+      const win = A.windows && A.windows[i];
+      const slot = win && win.querySelector('.win-slot');
+      if (!slot) return null;
+      // 木とレンガの家は、絵の窓の上に、のぞくときだけ窓を重ねる
+      win.style.opacity = '';
+      if (animate && Art.windowOverlay(type)) tween(win, [{ opacity: 0 }, { opacity: 1 }], { duration: 300 });
+      // 窓の大きさに合わせて縮め、顔が窓のまんなかに来る高さに置く（s=0.72 で足元から顔の中心まで約 93）
+      const s = 0.72 * box.w / 64;
+      const y = box.cy + 97 * s / 0.72;
+      const g = el(slot, 'actor pig pig--scared', Art.pig(box.pig), box.cx, animate ? y + 70 * s / 0.72 : y, s);
+      if (!animate) return null;
+      return moveTo(g, box.cx, y, 600, 'ease-out');
+    }));
+  }
 
+  /** ノックのあと、せりふなしで「ふーっ」を待つ。 */
   async function enterBlow(d, type, jumped) {
-    const cfg = HOUSE_PIGS[type];
     if (jumped) {
       await transition(d, () => {
-        renderOutdoor(type, 99);
-        cfg.pigs.forEach(([n, x]) => addPig(n, x));
+        renderInside(type);
+        addWolf(WOLF_X);
+        showWindowPigs(type, false);
       });
-    } else if (A.pile) {
-      A.pile.remove();
-      A.pile = null;
-    }
-    addWolf(-260);
-    Sound.wolfIn();
-    await d.run(walkTo(A.wolf, WOLF_X, 2000));
-    await d.say('narrator', WOLF_COMES[type]);
-    // こぶたたちは あわてて おうちの なかへ
-    pigs().forEach((p) => pigMood(p, 'scared'));
-    Sound.run();
-    await d.all(pigs().map((p, i) => walkTo(p, HOUSE_X + i * 6, 600 + i * 120)));
-    await d.all(pigs().map((p) => fadeOut(p, 200)));
-    const many = type !== 'straw';
-    await d.say('wolf', many ? 'こぶたくんたち、いれておくれ！' : 'こぶたくん、いれておくれ！');
-    await d.say(many ? 'pigs' : 'pig1', 'いやだよー！');
-    await d.say('wolf', 'それなら、こんな おうち ふきとばしてやる！');
-    if (type === 'straw') {
-      await d.say('narrator', micOn
-        ? 'おおかみに なって、マイクに ふーっ！ って いきを ふきかけてね。タッチでも いいよ。'
-        : 'おおかみを タッチして、ふーっ！ って ふきとばそう！');
-    } else {
-      await d.say('narrator', 'みんなも いっしょに、ふーっ！');
     }
     showPrompt(true);
   }
@@ -729,21 +772,11 @@
     return wind;
   }
 
-  async function onShake(d, ev) {
-    await blowAction(d);
-    Sound.wobble();
-    await d.run(tween(A.house, [
-      { rotate: '0deg' }, { rotate: '-3deg' }, { rotate: '3deg' }, { rotate: '-2deg' }, { rotate: '1deg' }, { rotate: '0deg' },
-    ], { duration: 800 }));
-    wolfMood();
-    await d.say('narrator', ev.index === 0 ? 'ぐらぐら！ もう すこし！ もういっかい ふーっ！' : 'もういっかい ふーっ！');
-    showPrompt(false);
-  }
-
+  /** 家がふきとび、こぶたたちが逃げる（せりふなし）。 */
   async function onBlownAway(d, type) {
     await blowAction(d);
     Sound.crash();
-    A.house.querySelectorAll('.piece').forEach((p, i) => {
+    A.house.querySelectorAll('.piece, .house-window').forEach((p, i) => {
       tween(p, [
         { transform: 'translate(0, 0) rotate(0deg)', opacity: 1 },
         { transform: `translate(${rand(500, 900).toFixed(0)}px, ${rand(-420, -160).toFixed(0)}px) rotate(${rand(-540, 540).toFixed(0)}deg)`, opacity: 0 },
@@ -757,35 +790,26 @@
     });
     await d.wait(900);
     wolfMood();
-    const many = type !== 'straw';
-    await d.say('narrator', many ? 'きの おうちも、ふきとんで しまいました！' : 'わらの おうちは、ふきとんで しまいました！');
-    await d.say(many ? 'pigs' : 'pig1', many ? 'にげろー！' : 'たすけてー！');
     Sound.run();
-    await d.all(pigs().map((p, i) => walkTo(p, 1150 + i * 60, 900 + i * 100)));
-    await d.say('wolf', 'まてー！');
-    await d.run(walkTo(A.wolf, 1300, 1300));
-    await d.say('narrator', many
-      ? '2ひきの こぶたは、3びきめの こぶたの ところへ にげました。'
-      : '1ぴきめの こぶたは、2ひきめの こぶたの ところへ にげました。');
-    await enterBuild(d, many ? 'brick' : 'wood');
+    const runs = pigs().map((p, i) => walkTo(p, 1150 + i * 60, 900 + i * 100));
+    await d.wait(350);
+    await d.all([...runs, walkTo(A.wolf, 1300, 1300)]);
+    await d.wait(300);
+    await enterBuild(d, type === 'straw' ? 'wood' : 'brick');
   }
 
-  async function onHolds(d, ev) {
+  /** レンガの家は、ふいてもびくともしない（せりふなし）。 */
+  async function onHolds(d) {
     await blowAction(d);
     Sound.boing();
     await d.run(tween(A.house, [
       { rotate: '0deg' }, { rotate: '-.6deg' }, { rotate: '.6deg' }, { rotate: '0deg' },
     ], { duration: 400 }));
     wolfMood();
-    if (ev.index === 0) {
-      await d.say('narrator', 'あれれ？ レンガの おうちは びくとも しないよ！');
-      await d.say('wolf', 'ぐぬぬ… もういっかい！');
-    } else {
-      await d.say('wolf', 'まだまだ！ もっと つよく ふーっ！');
-    }
     showPrompt(false);
   }
 
+  /** オオカミがあきらめて、やねの上へ（せりふなし）。 */
   async function onGaveUp(d) {
     await blowAction(d);
     Sound.boing();
@@ -794,8 +818,7 @@
     ], { duration: 400 }));
     wolfMood('tired');
     Sound.tired();
-    await d.say('narrator', 'なんど ふいても、レンガの おうちは ふきとびません！');
-    await d.say('wolf', 'はあ、はあ… こうなったら、えんとつから はいってやる！');
+    await d.wait(1400);
     wolfMood();
     // やねに のぼって えんとつへ
     await d.run(walkTo(A.wolf, 330, 600));
@@ -807,8 +830,7 @@
     await d.run(moveTo(A.wolf, ridge[0], ridge[1], 450, 'linear'));
     await d.run(moveTo(A.wolf, chimney[0], chimney[1], 350, 'linear'));
     A.wolf.classList.remove('walking');
-    await d.say('narrator', 'たいへん！ おおかみが やねに のぼったよ！');
-    await d.say('pig3', 'いまの うちに、おなべに おゆを わかそう！');
+    await d.wait(1000);
     await enterFill(d);
   }
 
@@ -940,10 +962,10 @@
       const piece = find('piece');
       if (piece) await onPiece(d, piece);
       if (find('built')) return onBuilt(d, find('built').house);
-      if (find('shake')) return onShake(d, find('shake'));
+      if (find('knock')) return onKnock(d, find('knock').house);
       if (find('blownAway')) return onBlownAway(d, find('blownAway').house);
       if (find('gaveUp')) return onGaveUp(d);
-      if (find('holds')) return onHolds(d, find('holds'));
+      if (find('holds')) return onHolds(d);
       const pour = find('pour');
       if (pour) await onPour(d, pour);
       if (find('boiling')) return onBoiling(d);

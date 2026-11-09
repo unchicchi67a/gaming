@@ -123,9 +123,31 @@ ${shadow(62, 9)}
   // base は土台（地面に接するところ）の画像上の高さ、cuts はパーツの境目（画像の上端 0 〜 下端 1）。
 
   const HOUSE_IMG = {
-    straw: { px: [560, 510], base: 498, width: 280, cuts: [0.82, 0.62, 0.42, 0.24] },
-    wood: { px: [560, 586], base: 560, width: 290, cuts: [0.8, 0.66, 0.52, 0.38, 0.22] },
-    brick: { px: [560, 569], base: 530, width: 280, cuts: [0.86, 0.75, 0.64, 0.53, 0.42, 0.28, 0.14] },
+    // windows：ノックのあと、こぶたがのぞく窓（画像上の中心と大きさ、形、のぞくこぶた）。上から SVG で描き足す。
+    // わらの家は絵に窓がないので、家ができたら出す。木とレンガの家は絵の窓に重ね、のぞくときだけ出す（overlay）。
+    // door：オオカミがノックする戸の位置（画像上）。
+    straw: {
+      px: [560, 510], base: 498, width: 280, cuts: [0.82, 0.62, 0.42, 0.24],
+      door: [272, 350],
+      windows: [{ cx: 412, cy: 360, w: 128, h: 108, shape: 'arch', pig: 1 }],
+    },
+    wood: {
+      px: [560, 586], base: 560, width: 290, cuts: [0.8, 0.66, 0.52, 0.38, 0.22],
+      door: [315, 370], overlay: true,
+      windows: [
+        { cx: 191, cy: 328, w: 96, h: 126, shape: 'rect', pig: 2 },
+        { cx: 431, cy: 327, w: 84, h: 98, shape: 'rect', pig: 1 },
+      ],
+    },
+    brick: {
+      px: [560, 569], base: 530, width: 280, cuts: [0.86, 0.75, 0.64, 0.53, 0.42, 0.28, 0.14],
+      door: [343, 400], overlay: true,
+      windows: [
+        { cx: 92, cy: 360, w: 100, h: 140, shape: 'arch', pig: 3 },
+        { cx: 465, cy: 380, w: 96, h: 140, shape: 'arch', pig: 2 },
+        { cx: 86, cy: 205, w: 64, h: 92, shape: 'arch', pig: 1 },
+      ],
+    },
   };
 
   /** 家の絵の、ワールド座標での位置と大きさ。 */
@@ -133,6 +155,58 @@ ${shadow(62, 9)}
     const h = HOUSE_IMG[type];
     const k = h.width / h.px[0];
     return { x: HOUSE_X - h.width / 2, y: GROUND + 6 - h.base * k, w: h.width, h: h.px[1] * k };
+  }
+
+  /** 画像上の点を、ワールド座標に直す。 */
+  function housePoint(type, px, py) {
+    const b = houseBox(type);
+    const k = b.w / HOUSE_IMG[type].px[0];
+    return { x: b.x + px * k, y: b.y + py * k, k };
+  }
+
+  /** 窓の、ワールド座標での中心と大きさ、形、のぞくこぶたの番号。 */
+  function windowBoxes(type) {
+    return (HOUSE_IMG[type].windows || []).map((win) => {
+      const p = housePoint(type, win.cx, win.cy);
+      return { cx: p.x, cy: p.y, w: win.w * p.k, h: win.h * p.k, shape: win.shape, pig: win.pig };
+    });
+  }
+
+  /** オオカミがノックする戸の位置（ワールド座標）。 */
+  function doorPoint(type) {
+    const [px, py] = HOUSE_IMG[type].door;
+    const p = housePoint(type, px, py);
+    return { x: p.x, y: p.y };
+  }
+
+  /** 窓をのぞく絵の上に描き足すか（true なら、のぞくまで窓を出さない）。 */
+  function windowOverlay(type) {
+    return !!HOUSE_IMG[type].overlay;
+  }
+
+  /**
+   * 窓。中は暗い部屋で、.win-slot に入れたもの（のぞくこぶた）は窓の形で切り抜かれる。
+   * 窓の枠は家の材料に合わせる（わら・木は木の枠、レンガは白い枠）。
+   */
+  function houseWindow(type, w, i) {
+    const f = (v) => v.toFixed(1);
+    const x0 = w.cx - w.w / 2, x1 = w.cx + w.w / 2, y0 = w.cy - w.h / 2, y1 = w.cy + w.h / 2;
+    const ys = y0 + w.w * 0.35;
+    const shape = w.shape === 'rect'
+      ? `M${f(x0)} ${f(y0)} H${f(x1)} V${f(y1)} H${f(x0)} Z`
+      : `M${f(x0)} ${f(y1)} V${f(ys)} Q${f(x0)} ${f(y0)} ${f(w.cx)} ${f(y0)} Q${f(x1)} ${f(y0)} ${f(x1)} ${f(ys)} V${f(y1)} Z`;
+    const frame = type === 'brick' ? ['#8fa79a', '#eef3ec'] : ['#8a6238', '#d9b27a'];
+    const sill = type === 'brick' ? ['#e9e4dc', '#9a948a'] : ['#b98a55', '#7a5530'];
+    const id = `win-${type}-${i}`;
+    return `<g class="house-window" data-pig="${w.pig}">
+  <defs><clipPath id="${id}" clipPathUnits="userSpaceOnUse"><path d="${shape}"/></clipPath>
+  ${rad(id + '-dark', [[0, '#6b5038'], [1, '#2e2219']], 0.5, 0.35, 0.75)}</defs>
+  <path d="${shape}" fill="url(#${id}-dark)"/>
+  <g class="win-slot" clip-path="url(#${id})"></g>
+  <path d="${shape}" fill="none" stroke="${frame[0]}" stroke-width="5" stroke-linejoin="round"/>
+  <path d="${shape}" fill="none" stroke="${frame[1]}" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>
+  <rect x="${f(x0 - 5)}" y="${f(y1 - 2)}" width="${f(w.w + 10)}" height="6" rx="3" fill="${sill[0]}" stroke="${sill[1]}" stroke-width="1.5"/>
+</g>`;
   }
 
   /** レンガの家のやねを、おおかみがえんとつまでのぼる道すじ（足元の位置）。 */
@@ -151,7 +225,7 @@ ${shadow(62, 9)}
       clips += `<clipPath id="${id}" clipPathUnits="userSpaceOnUse"><rect x="${b.x - 40}" y="${y0.toFixed(1)}" width="${b.w + 80}" height="${(y1 - y0 + 0.6).toFixed(1)}"/></clipPath>`;
       pieces += `<g class="piece" data-i="${i}" data-x="${HOUSE_X}" data-y="${Math.min(y1, GROUND).toFixed(0)}" clip-path="url(#${id})">${img(`house-${type}.webp`, b.x, b.y, b.w, b.h)}</g>`;
     }
-    return `<defs>${clips}</defs><ellipse cx="${HOUSE_X}" cy="${GROUND + 4}" rx="168" ry="17" fill="url(#g-shadow)"/>${pieces}`;
+    return `<defs>${clips}</defs><ellipse cx="${HOUSE_X}" cy="${GROUND + 4}" rx="168" ry="17" fill="url(#g-shadow)"/>${pieces}${windowBoxes(type).map((w, i) => houseWindow(type, w, i)).join('')}`;
   }
 
   // ---------------------------------------------------------------- 材料の山（上から順に data-k=0,1,...）
@@ -339,7 +413,7 @@ ${img(POT.file, x, POT.top, POT.width, POT.px[1] * k)}
 
 
   root.PigsArt = {
-    GROUND, HOUSE_X, WOLF_MOUTH, ROOF_PATH,
+    GROUND, HOUSE_X, WOLF_MOUTH, ROOF_PATH, windowBoxes, windowOverlay, doorPoint,
     defs, pig, wolf, house, pile, outdoor, indoor, fireplaceBack, fireplaceFront, pitcher,
     beckon, wind, heart, star, images,
   };

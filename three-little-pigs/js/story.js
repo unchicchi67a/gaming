@@ -19,22 +19,26 @@
   /**
    * 場面の一覧（物語の順番どおり）。
    * - build: タッチするたびに家のパーツがひとつ増える。pieces 個で完成
+   * - knock: タッチでオオカミが戸をノックする。knocks 回で次へ
    * - blow:  ふーっ（息またはタッチ）を blows 回で決着。breaks が true なら家が飛ぶ
    * - fill:  タッチするたびにおなべにお湯が入る。pieces 回でいっぱい
    */
   const SCENES = Object.freeze([
     Object.freeze({ id: 'title', kind: 'title' }),
     Object.freeze({ id: 'straw-build', kind: 'build', house: 'straw', pieces: 5 }),
+    Object.freeze({ id: 'straw-knock', kind: 'knock', house: 'straw', knocks: 1 }),
     Object.freeze({ id: 'straw-blow', kind: 'blow', house: 'straw', blows: 1, breaks: true }),
     Object.freeze({ id: 'wood-build', kind: 'build', house: 'wood', pieces: 6 }),
-    Object.freeze({ id: 'wood-blow', kind: 'blow', house: 'wood', blows: 2, breaks: true }),
+    Object.freeze({ id: 'wood-knock', kind: 'knock', house: 'wood', knocks: 1 }),
+    Object.freeze({ id: 'wood-blow', kind: 'blow', house: 'wood', blows: 1, breaks: true }),
     Object.freeze({ id: 'brick-build', kind: 'build', house: 'brick', pieces: 8 }),
-    Object.freeze({ id: 'brick-blow', kind: 'blow', house: 'brick', blows: 3, breaks: false }),
+    Object.freeze({ id: 'brick-knock', kind: 'knock', house: 'brick', knocks: 1 }),
+    Object.freeze({ id: 'brick-blow', kind: 'blow', house: 'brick', blows: 2, breaks: false }),
     Object.freeze({ id: 'pot-fill', kind: 'fill', pieces: 4 }),
     Object.freeze({ id: 'ending', kind: 'ending' }),
   ]);
 
-  const INTERACTIVE = new Set(['build', 'blow', 'fill']);
+  const INTERACTIVE = new Set(['build', 'knock', 'blow', 'fill']);
 
   function indexOf(id) {
     const i = SCENES.findIndex((s) => s.id === id);
@@ -58,6 +62,7 @@
   /** いまの場面で必要な回数（タッチ・ふーっ）。対話のない場面は 0。 */
   function required(scene) {
     if (scene.kind === 'build' || scene.kind === 'fill') return scene.pieces;
+    if (scene.kind === 'knock') return scene.knocks;
     if (scene.kind === 'blow') return scene.blows;
     return 0;
   }
@@ -97,6 +102,16 @@
           return { state: Object.freeze({ index: state.index, count }), events };
         }
         events.push({ type: 'built', house: scene.house });
+        return { state: advance(state, events), events };
+      }
+
+      case 'knock': {
+        if (action !== 'tap') break;
+        const count = state.count + 1;
+        events.push({ type: 'knock', house: scene.house, index: count - 1, total: scene.knocks });
+        if (count < scene.knocks) {
+          return { state: Object.freeze({ index: state.index, count }), events };
+        }
         return { state: advance(state, events), events };
       }
 

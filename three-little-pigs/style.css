@@ -90,7 +90,7 @@ button:focus-visible, select:focus-visible { outline: 3px solid var(--ink); outl
 /* キャラクターは CSS の transform で置く（足元が原点） */
 .actor, .actor .a-body, .actor .a-flip { transform-origin: 0 0; }
 
-.piece, .pile-item, .gust, .fx-item { transform-box: fill-box; transform-origin: center; }
+.piece, .house-window, .pile-item, .gust, .fx-item { transform-box: fill-box; transform-origin: center; }
 .house-shake { transform-box: fill-box; transform-origin: 50% 100%; }
 
 

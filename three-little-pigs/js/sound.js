@@ -107,6 +107,11 @@
       tone(196, 0.3, { type: 'sawtooth', volume: 0.06 });
       tone(185, 0.4, { type: 'sawtooth', volume: 0.06, delay: 320 });
     },
+    /** 戸を 1 回たたく「コン」。 */
+    knock() {
+      tone(190, 0.09, { type: 'triangle', volume: 0.4, slide: 120 });
+      hiss(0.05, { freq: 900, q: 1.5, volume: 0.25 });
+    },
     inhale() { hiss(0.35, { freq: 600, freqTo: 2400, q: 1.2, volume: 0.12, attack: 0.25 }); },
     whoosh() { hiss(1.0, { freq: 1800, freqTo: 300, q: 0.8, volume: 0.45, attack: 0.08 }); },
     wobble() {

@@ -34,9 +34,9 @@ test('物語はタイトルから始まり、はじめるでわらの家づく�
 test('場面の順番が物語どおりになっている', () => {
   assert.deepEqual(Story.SCENES.map((s) => s.id), [
     'title',
-    'straw-build', 'straw-blow',
-    'wood-build', 'wood-blow',
-    'brick-build', 'brick-blow',
+    'straw-build', 'straw-knock', 'straw-blow',
+    'wood-build', 'wood-knock', 'wood-blow',
+    'brick-build', 'brick-knock', 'brick-blow',
     'pot-fill',
     'ending',
   ]);
@@ -53,7 +53,7 @@ test('家づくり：タッチするたびにパーツが増え、規定回数�
   const last = Story.act(before.state, 'tap');
   assert.deepEqual(types(last.events), ['piece', 'built', 'scene']);
   assert.equal(last.events[0].index, total - 1);
-  assert.equal(sceneId(last.state), 'straw-blow');
+  assert.equal(sceneId(last.state), 'straw-knock');
   assert.equal(last.state.count, 0);
 });
 
@@ -64,24 +64,44 @@ test('家ごとのパーツ数：わら 5・き 6・レンガ 8', () => {
   assert.deepEqual(pieces, { straw: 5, wood: 6, brick: 8 });
 });
 
+test('どの家も、できたら 1 回のタッチでオオカミがノックして、ふーっの場面へ', () => {
+  for (const house of ['straw', 'wood', 'brick']) {
+    const s = Story.createState(house + '-knock');
+    assert.equal(Story.isInteractive(s), true);
+    assert.equal(Story.required(Story.currentScene(s)), 1);
+    assert.deepEqual(Story.act(s, 'blow').events, []);
+    const r = Story.act(s, 'tap');
+    assert.deepEqual(r.events, [{ type: 'knock', house, index: 0, total: 1 }, { type: 'scene', id: house + '-blow' }]);
+    assert.equal(sceneId(r.state), house + '-blow');
+  }
+});
+
+test('家ができたら、ノックの場面へ進む', () => {
+  for (const house of ['straw', 'wood', 'brick']) {
+    const scene = Story.SCENES.find((x) => x.id === house + '-build');
+    const { state } = run(Story.createState(house + '-build'), repeat('tap', scene.pieces));
+    assert.equal(sceneId(state), house + '-knock');
+  }
+});
+
 test('わらの家は 1 回のふーっで吹き飛ぶ', () => {
   const r = Story.act(Story.createState('straw-blow'), 'blow');
   assert.deepEqual(types(r.events), ['blownAway', 'scene']);
   assert.equal(sceneId(r.state), 'wood-build');
 });
 
-test('木の家は 1 回目はぐらぐら、2 回目で吹き飛ぶ', () => {
-  const first = Story.act(Story.createState('wood-blow'), 'blow');
-  assert.deepEqual(first.events, [{ type: 'shake', house: 'wood', index: 0, total: 2 }]);
-  assert.equal(sceneId(first.state), 'wood-blow');
-  const second = Story.act(first.state, 'blow');
-  assert.deepEqual(types(second.events), ['blownAway', 'scene']);
-  assert.equal(sceneId(second.state), 'brick-build');
+test('木の家も 1 回のふーっで吹き飛ぶ', () => {
+  const r = Story.act(Story.createState('wood-blow'), 'blow');
+  assert.deepEqual(types(r.events), ['blownAway', 'scene']);
+  assert.equal(sceneId(r.state), 'brick-build');
 });
 
-test('レンガの家は何度ふーっとしても吹き飛ばず、3 回でオオカミがあきらめる', () => {
-  const { state, events } = run(Story.createState('brick-blow'), repeat('blow', 3));
-  assert.deepEqual(types(events), ['holds', 'holds', 'holds', 'gaveUp', 'scene']);
+test('レンガの家はふーっとしても吹き飛ばず、2 回でオオカミがあきらめる', () => {
+  const first = Story.act(Story.createState('brick-blow'), 'blow');
+  assert.deepEqual(first.events, [{ type: 'holds', house: 'brick', index: 0, total: 2 }]);
+  assert.equal(sceneId(first.state), 'brick-blow');
+  const { state, events } = run(Story.createState('brick-blow'), repeat('blow', 2));
+  assert.deepEqual(types(events), ['holds', 'holds', 'gaveUp', 'scene']);
   assert.ok(!types(events).includes('blownAway'));
   assert.equal(sceneId(state), 'pot-fill');
 });
@@ -120,6 +140,7 @@ test('最初から最後まで通しで遊べる', () => {
   const actions = ['start'];
   for (const scene of Story.SCENES) {
     if (scene.kind === 'build' || scene.kind === 'fill') actions.push(...repeat('tap', scene.pieces));
+    if (scene.kind === 'knock') actions.push(...repeat('tap', scene.knocks));
     if (scene.kind === 'blow') actions.push(...repeat('blow', scene.blows));
   }
   const { state, events } = run(Story.createState(), actions);
@@ -142,7 +163,9 @@ test('required は場面ごとの必要回数を返す', () => {
   const byId = Object.fromEntries(Story.SCENES.map((s) => [s.id, Story.required(s)]));
   assert.equal(byId.title, 0);
   assert.equal(byId['straw-build'], 5);
-  assert.equal(byId['brick-blow'], 3);
+  assert.equal(byId['brick-knock'], 1);
+  assert.equal(byId['wood-blow'], 1);
+  assert.equal(byId['brick-blow'], 2);
   assert.equal(byId['pot-fill'], 4);
   assert.equal(byId.ending, 0);
 });
