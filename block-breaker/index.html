@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#e9f5ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>ブロックくずし</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- タイトル（設定） -->
+  <section class="screen title" id="title">
+    <h1 class="logo" aria-label="ブロックくずし">
+      <span class="logo-row" aria-hidden="true">
+        <span class="logo-tile">ブ</span><span class="logo-tile">ロ</span><span class="logo-tile">ッ</span><span class="logo-tile">ク</span><span class="logo-tile">く</span><span class="logo-tile">ず</span><span class="logo-tile">し</span>
+      </span>
+      <span class="logo-sub" aria-hidden="true">Lv1〜100 まで あそべる！</span>
+    </h1>
+
+    <form class="panel" id="settings" onsubmit="return false">
+      <div class="field">
+        <div class="field-head">
+          <span class="field-name">難易度</span>
+          <span class="level-badge">Lv <output id="level-value">1</output></span>
+        </div>
+        <div class="level-row">
+          <button type="button" class="step-btn" id="level-down" aria-label="レベルを下げる">−</button>
+          <input type="range" id="level" min="1" max="100" step="1" value="1" aria-label="難易度（レベル）">
+          <button type="button" class="step-btn" id="level-up" aria-label="レベルを上げる">＋</button>
+        </div>
+        <div class="level-info">
+          <canvas class="preview" id="preview" width="200" height="120" aria-hidden="true"></canvas>
+          <ul class="level-facts" id="level-facts"></ul>
+        </div>
+      </div>
+
+      <fieldset class="field">
+        <legend class="field-name">速さ</legend>
+        <div class="seg" id="speed">
+          <label><input type="radio" name="speed" value="slow"><span>遅い</span></label>
+          <label><input type="radio" name="speed" value="normal"><span>普通</span></label>
+          <label><input type="radio" name="speed" value="fast"><span>速い</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend class="field-name">バーの大きさ</legend>
+        <div class="seg seg--4" id="paddle">
+          <label><input type="radio" name="paddle" value="small"><span>小さい</span></label>
+          <label><input type="radio" name="paddle" value="normal"><span>普通</span></label>
+          <label><input type="radio" name="paddle" value="large"><span>大きい</span></label>
+          <label><input type="radio" name="paddle" value="huge"><span>とても<br>大きい</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend class="field-name">ボールの数</legend>
+        <div class="seg" id="lives">
+          <label><input type="radio" name="lives" value="1"><span>1こ</span></label>
+          <label><input type="radio" name="lives" value="3"><span>3こ</span></label>
+          <label><input type="radio" name="lives" value="5"><span>5こ</span></label>
+        </div>
+      </fieldset>
+
+      <label class="toggle">
+        <input type="checkbox" id="sound">
+        <span class="toggle-track" aria-hidden="true"></span>
+        <span>効果音</span>
+      </label>
+
+      <button type="button" class="btn btn--start" id="start">スタート</button>
+      <p class="best" id="best"></p>
+    </form>
+
+    <details class="howto">
+      <summary>あそびかた</summary>
+      <ul>
+        <li>指やマウスを左右に動かすと、バーが動きます。キーボードの ← → でも動かせます</li>
+        <li>画面をタップ（クリック）するか、スペースキーでボールを打ち出します</li>
+        <li>バーのまん中で打つと真上に、はしで打つとななめに飛びます</li>
+        <li>色のついたブロックをすべてこわすとクリア。何回か当てないとこわれないブロックもあります（色で残りの回数がわかります）</li>
+        <li>灰色の鉄のブロックはこわれません（Lv15 から出てきます）</li>
+        <li>Esc か P キー、または右上のボタンで一時停止できます</li>
+      </ul>
+    </details>
+    <p class="back"><a href="../">← ゲームの一覧へ</a></p>
+  </section>
+
+  <!-- ゲーム -->
+  <section class="screen game" id="game" hidden>
+    <header class="hud">
+      <span class="hud-level">Lv <b id="hud-level">1</b></span>
+      <span class="hud-score"><b id="hud-score">0</b></span>
+      <span class="hud-lives" id="hud-lives" aria-label="残りのボール"></span>
+      <button type="button" class="hud-pause" id="pause" aria-label="一時停止">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+      </button>
+    </header>
+    <div class="stage" id="stage">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="overlay" id="overlay" hidden>
+      <div class="dialog">
+        <h2 id="dialog-title"></h2>
+        <p id="dialog-text"></p>
+        <div class="dialog-actions" id="dialog-actions"></div>
+      </div>
+    </div>
+  </section>
+
+  <script src="js/fullscreen.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/physics.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
