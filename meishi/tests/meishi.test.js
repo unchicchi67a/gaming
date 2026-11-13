@@ -55,9 +55,14 @@ const smallBot = makeBot(0.2, (g) => G.reachIn(g.opp.x, 0.4, g.tuning.playerVmax
 const bigBot = makeBot(0.6, (g) => G.reachIn(g.opp.x, 1.4, g.tuning.playerVmax, g.tuning));
 const readerBot = makeBot(0.9, (g) => killOrSmall(g, FACE_EST[g.opp.face]));
 
-function winRate(bot, n) {
+function winRate(bot, n, rank) {
   let wins = 0;
-  for (let seed = 1; seed <= n; seed++) if (won(play(bot, seed))) wins++;
+  for (let seed = 1; seed <= n; seed++) {
+    const g = G.createGame({ rng: G.makeRng(seed), rank });
+    const st = { holding: false };
+    while (g.state === 'playing' && g.time < 300) G.step(g, DT, bot(g, st));
+    if (won(g)) wins++;
+  }
   return wins / n;
 }
 
@@ -405,6 +410,30 @@ test('バランス：顔色を読んでトドメを狙うと、毎回ドカン�
   assert.ok(reader >= 0.55 && reader <= 0.85, msg);
   assert.ok(big <= 0.7 && small <= 0.7, msg);
   assert.ok(big >= 0.3 && small >= 0.3, msg);
+});
+
+test('相手の役職：6 つあり、指定しないと部長。役職ごとの値が使われる', () => {
+  assert.deepEqual(G.RANKS.map((r) => r.name), ['平社員', '係長', '課長', '部長', '局長', '社長']);
+  assert.equal(G.createGame({ rng: G.makeRng(1) }).rank.name, '部長');
+  assert.equal(G.createGame({ rng: G.makeRng(1), rank: 'nope' }).rank.name, '部長');
+  const shacho = G.createGame({ rng: G.makeRng(1), rank: 'shacho' });
+  assert.equal(shacho.rank.name, '社長');
+  assert.deepEqual(shacho.tuning.oppStamina, G.RANKS.at(-1).tuning.oppStamina);
+  assert.ok(shacho.opp.max >= shacho.tuning.oppStamina[0]);
+  // 役職で変わるのは相手のことだけ（自分の腰や速さは同じ）
+  for (const r of G.RANKS) {
+    for (const key of Object.keys(r.tuning)) assert.ok(key.startsWith('opp'), `${r.name} の ${key}`);
+  }
+});
+
+test('バランス：役職が上がるほど勝ちにくい。平社員はほぼ勝てて、社長でも勝てなくはない', () => {
+  const n = 80;
+  const rates = G.RANKS.map((r) => winRate(readerBot, n, r.id));
+  const msg = G.RANKS.map((r, i) => `${r.name} ${rates[i].toFixed(2)}`).join('、');
+  for (let i = 1; i < rates.length; i++) assert.ok(rates[i] <= rates[i - 1] + 0.03, msg);
+  assert.ok(rates[0] >= 0.85, msg);
+  assert.ok(rates.at(-1) >= 0.05 && rates.at(-1) <= 0.45, msg);
+  assert.ok(rates[0] - rates.at(-1) >= 0.5, msg);
 });
 
 test('読み合いが続くと、地下の地層まで潜る', () => {

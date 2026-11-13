@@ -1,26 +1,34 @@
 /*
  * 名刺交換・低さバトル。
  *
- * デザインの方針：「まじめなビジネス文書が、どんどん地底へ落ちていく」
- * - パネルやボタンは名刺・書類のような白い紙に、紺のインク
- * - 失礼度は朱色（ハンコの色）、腰ゲージは緑
+ * デザインの方針：「名刺・ハンコ・付箋」。画面の部品を、すべてオフィスの文房具にする。
+ * - タイトルと結果は 1 枚の大きな名刺。背景は紺のスーツのピンストライプ
+ * - 決定のボタンと「さげる」は朱肉のハンコ。結果は名刺に「成立」のハンコを押す
+ * - プレイ中の深さは社員証、ゲージは書類、お知らせは付箋
+ * - ふちどりは紺（--ink）の太い線、影はぼかさない「かたい影」。押すと沈む
+ * - 文字：見出しと数字は Dela Gothic One、本文は M PLUS Rounded 1c
+ * - 動きはタイトルのお辞儀（文字が 1 つずつ下がる）と、結果のハンコの 2 か所だけ
  * - 画面はスクロールさせず、ゲームの絵（canvas）を画面いっぱいに出す
  */
 :root {
-  --ink: #1f2a4a;
-  --ink-soft: #55607f;
-  --paper: #fffdf7;
-  --paper-edge: #d9d2bf;
-  --navy: #2f3e66;
-  --navy-ledge: #1b2544;
-  --vermilion: #e2412f;
-  --vermilion-ledge: #a72a1d;
-  --leaf: #39b25a;
-  --warn: #f2a516;
-  --bar-off: rgba(255, 255, 255, 0.25);
-  --overlay: rgba(20, 26, 46, 0.55);
+  --card: #ffffff; /* 名刺の用紙 */
+  --card-line: #d5dbea; /* 名刺の中の区切り線 */
+  --ink: #1d2a5c; /* 紺のスーツ・インク */
+  --ink-soft: #5a6488;
+  --shu: #e8382b; /* 朱肉 */
+  --shu-deep: #b3241a;
+  --fusen: #ffe15a; /* 付箋 */
+  --fusen-edge: #d9b526;
+  --koshi: #22b573; /* 腰 */
+  --koshi-low: #f5a623;
+  --ma-you: #2f7bf5; /* 間：あなたが低い */
+  --ma-even: #9aa3b8; /* 間：同じ高さ */
+  --track: #e7ebf5;
+  --stripe: #1d2a5c;
+  --on-stripe: #ffffff;
+  --on-stripe-soft: #c9d2f2;
   --font-body: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
-  --font-pop: "Mochiy Pop One", "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  --font-display: "Dela Gothic One", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
   color-scheme: light;
 }
 
@@ -30,7 +38,7 @@ html, body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #2f3e66;
+  background: var(--stripe);
   color: var(--ink);
   font-family: var(--font-body);
   -webkit-user-select: none;
@@ -55,10 +63,18 @@ html, body {
 
 [hidden] { display: none !important; }
 
-/* ---------- ボタン ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- ボタン（太いふちどりと、押すと沈むかたい影） ---------- */
 .btn {
   font: inherit;
-  border: 0;
   cursor: pointer;
   color: inherit;
   text-decoration: none;
@@ -66,46 +82,62 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 14px;
+  border: 3px solid var(--ink);
+  border-radius: 999px;
   transition: transform 0.06s, box-shadow 0.06s;
   touch-action: manipulation;
 }
-.btn:focus-visible { outline: 3px solid var(--warn); outline-offset: 3px; }
+.btn:focus-visible { outline: 3px solid var(--fusen); outline-offset: 3px; }
 
 .btn-main {
-  padding: 14px 34px;
-  font-family: var(--font-pop);
-  font-size: 1.25rem;
+  padding: 12px 44px 14px;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.06em;
   color: #fff;
-  background: var(--vermilion);
-  box-shadow: 0 6px 0 var(--vermilion-ledge);
+  background: var(--shu);
+  box-shadow: 0 6px 0 var(--ink);
 }
-.btn-main:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--vermilion-ledge); }
+.btn-main:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
 
-.btn-small {
-  padding: 10px 16px;
+.btn-sub {
+  padding: 8px 18px;
   font-size: 0.9rem;
-  font-weight: 700;
-  background: var(--paper);
-  box-shadow: 0 4px 0 var(--paper-edge);
+  font-weight: 800;
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 4px 0 var(--ink);
 }
-.btn-small:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--paper-edge); }
+.btn-sub:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
 
+/* 「さげる」：朱肉のハンコ */
 .btn-hold {
-  width: clamp(110px, 22vmin, 170px);
-  height: clamp(110px, 22vmin, 170px);
+  position: relative;
+  width: clamp(112px, 22vmin, 168px);
+  height: clamp(112px, 22vmin, 168px);
+  border-width: 4px;
   border-radius: 50%;
   flex-direction: column;
-  gap: 0;
-  font-family: var(--font-pop);
-  font-size: clamp(1rem, 3.6vmin, 1.4rem);
+  gap: 2px;
   color: #fff;
-  background: var(--vermilion);
-  box-shadow: 0 8px 0 var(--vermilion-ledge), 0 10px 24px rgba(0, 0, 0, 0.35);
+  background: var(--shu);
+  box-shadow: 0 8px 0 var(--ink);
   touch-action: none;
 }
-.btn-hold .hold-arrow { font-size: 1.6em; line-height: 1; }
-.btn-hold.is-down { transform: translateY(6px); box-shadow: 0 2px 0 var(--vermilion-ledge), 0 4px 12px rgba(0, 0, 0, 0.3); }
+.hold-ring {
+  position: absolute;
+  inset: 7px;
+  border: 2.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.hold-label {
+  font-family: var(--font-display);
+  font-size: clamp(1.05rem, 3.8vmin, 1.45rem);
+  letter-spacing: 0.08em;
+}
+.hold-arrow { font-size: clamp(0.8rem, 2.6vmin, 1rem); line-height: 1; }
+.btn-hold.is-down { transform: translateY(6px); box-shadow: 0 2px 0 var(--ink); }
 
 /* ---------- プレイ中の表示 ---------- */
 .hud {
@@ -115,7 +147,7 @@ html, body {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+  padding: max(14px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
 }
 .hud button { pointer-events: auto; }
 
@@ -126,66 +158,85 @@ html, body {
   gap: 12px;
 }
 
+/* 社員証：いまの深さ */
 .depth-box {
+  position: relative;
   min-width: 0;
-  padding: 8px 14px;
-  border-radius: 12px;
-  background: rgba(15, 20, 38, 0.6);
-  color: #fff;
+  padding: 12px 16px 8px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 5px 0 var(--ink);
+}
+.badge-clip {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 30px;
+  height: 12px;
+  margin-left: -15px;
+  border-radius: 4px;
+  background: var(--ink);
 }
 .depth {
-  font-family: var(--font-pop);
-  font-size: clamp(1.1rem, 4.4vmin, 1.7rem);
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 4.4vmin, 1.7rem);
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.layer { font-size: 0.9rem; font-weight: 700; opacity: 0.9; }
+.layer { margin-top: 2px; font-size: 0.85rem; font-weight: 800; color: var(--ink-soft); }
 
+/* 書類：ゲージ */
 .gauges {
   display: grid;
-  gap: 5px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: rgba(15, 20, 38, 0.6);
-  color: #fff;
-  min-width: 190px;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 5px 0 var(--ink);
+  min-width: 210px;
   flex-shrink: 0;
 }
 .gauge {
   display: grid;
-  grid-template-columns: 6.2em 1fr;
+  grid-template-columns: 6.4em 1fr;
   align-items: center;
   gap: 8px;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
   white-space: nowrap;
 }
 .gauge-bar {
-  height: 10px;
-  border-radius: 5px;
-  background: var(--bar-off);
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--track);
   overflow: hidden;
 }
 .gauge-fill {
   display: block;
   height: 100%;
   width: 0;
-  border-radius: 5px;
-  background: var(--leaf);
+  background: var(--koshi);
 }
-/* 間：あなたが低いと青（このままなら勝ち）、部長が低いと赤（部長が差し出しそう）、同じ高さは灰色 */
-.gauge-ma .gauge-fill { background: var(--bar-off); transition: background 0.2s; }
-.gauge-ma.is-player .gauge-fill { background: #3d7be0; }
-.gauge-ma.is-opp .gauge-fill { background: var(--vermilion); }
-.gauge-ma.is-even .gauge-fill { background: #9a9a9a; }
+/* 間：あなたが低いと青（このままなら勝ち）、相手が低いと朱（相手が差し出しそう）、同じ高さは灰色 */
+.gauge-ma .gauge-label { font-family: var(--font-display); font-weight: 400; font-size: 0.95rem; }
+.gauge-ma .gauge-fill { background: var(--track); transition: background 0.2s; }
+.gauge-ma.is-player .gauge-fill { background: var(--ma-you); }
+.gauge-ma.is-opp .gauge-fill { background: var(--shu); }
+.gauge-ma.is-even .gauge-fill { background: var(--ma-even); }
 .gauge-ma.is-danger .gauge-bar { animation: blink 0.4s steps(2) infinite; }
-.ma-note { min-height: 1.2em; font-size: 0.72rem; font-weight: 700; text-align: right; line-height: 1.2; }
-.ma-note.is-player { color: #9cc2ff; }
-.ma-note.is-opp { color: #ff9a8a; }
-.gauge-back .gauge-fill.is-low { background: var(--warn); }
-.face { font-weight: 800; font-size: 0.85rem; white-space: nowrap; }
+.ma-note { min-height: 1.2em; font-size: 0.74rem; font-weight: 800; text-align: right; line-height: 1.2; }
+.ma-note.is-player { color: #1f5fd1; }
+.ma-note.is-opp { color: var(--shu-deep); }
+.ma-note.is-even { color: var(--ink-soft); }
+.gauge-back .gauge-fill.is-low { background: var(--koshi-low); }
+.gauge-face { padding-top: 4px; border-top: 1.5px dashed var(--card-line); }
+.face { font-weight: 800; font-size: 0.92rem; white-space: nowrap; }
 
-@keyframes blink { 50% { background: rgba(226, 65, 47, 0.6); } }
+@keyframes blink { 50% { background: #ffd2cc; } }
 
 .hud-bottom {
   display: flex;
@@ -193,114 +244,291 @@ html, body {
   align-items: flex-end;
 }
 
-/* ---------- お知らせ ---------- */
+/* ---------- お知らせ：付箋 ---------- */
 .toast {
   position: absolute;
   left: 50%;
-  bottom: max(22px, env(safe-area-inset-bottom));
-  transform: translate(-50%, 8px);
-  padding: 8px 18px;
-  border-radius: 999px;
-  background: var(--paper);
+  bottom: max(26px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 10px) rotate(-2deg);
+  padding: 12px 20px 10px;
+  border-radius: 2px;
+  background: var(--fusen);
   color: var(--ink);
-  font-family: var(--font-pop);
-  font-size: clamp(0.95rem, 3.4vmin, 1.3rem);
+  font-weight: 800;
+  font-size: clamp(0.95rem, 3.4vmin, 1.2rem);
   white-space: nowrap;
-  box-shadow: 0 4px 0 var(--paper-edge), 0 6px 18px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 0 var(--fusen-edge), 0 10px 18px rgba(16, 22, 50, 0.3);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s, transform 0.2s;
+  transition: opacity 0.18s, transform 0.18s;
 }
-.toast.is-shown { opacity: 1; transform: translate(-50%, 0); }
+/* 付箋のテープ */
+.toast::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 46px;
+  height: 14px;
+  margin-left: -23px;
+  background: rgba(255, 255, 255, 0.7);
+  transform: rotate(3deg);
+}
+.toast.is-shown { opacity: 1; transform: translate(-50%, 0) rotate(-2deg); }
 
 /* ---------- タイトル・結果 ---------- */
+/* 背景は紺のスーツのピンストライプ（うしろのゲームの絵が少し透ける） */
 .overlay {
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 16px;
-  background: var(--overlay);
+  padding: max(20px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 1.5px, transparent 1.5px 18px),
+    rgba(29, 42, 92, 0.9);
   overflow-y: auto;
 }
 
-.panel {
+.column {
+  margin: auto 0;
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: var(--on-stripe);
+}
+
+/* 名刺 */
+.meishi {
   position: relative;
-  width: min(100%, 460px);
-  max-height: 100%;
-  overflow-y: auto;
-  padding: 22px 26px 24px;
-  border-radius: 6px;
-  background: var(--paper);
-  box-shadow: 0 2px 0 var(--paper-edge), 0 18px 40px rgba(0, 0, 0, 0.4);
-  text-align: center;
+  width: 100%;
+  padding: 16px 22px 14px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 7px 0 var(--ink);
+  text-align: left;
 }
-/* 名刺のような左上の帯 */
-.panel::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 8px;
-  border-radius: 6px 0 0 6px;
-  background: var(--navy);
+.meishi-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 3px solid var(--shu);
 }
-
-.kicker {
-  margin: 0 0 4px;
-  font-size: 0.8rem;
+.meishi-company { font-size: 0.82rem; font-weight: 800; letter-spacing: 0.08em; }
+.meishi-role { margin: 12px 0 0; font-size: 0.78rem; font-weight: 700; color: var(--ink-soft); }
+.meishi-address {
+  margin: 12px 0 0;
+  padding-top: 8px;
+  border-top: 1.5px dashed var(--card-line);
+  font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
   color: var(--ink-soft);
 }
 
-.logo {
-  margin: 0 0 12px;
-  font-family: var(--font-pop);
-  font-weight: 400;
-  font-size: 1.3rem;
-  line-height: 1.25;
-  color: var(--navy);
+.title-card { transform: rotate(-1.5deg); }
+
+/* 朱肉のハンコ */
+.seal {
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--shu);
+  border-radius: 50%;
+  color: var(--shu);
+  font-family: var(--font-display);
+  line-height: 1;
 }
-.logo-big { font-size: 2.2rem; color: var(--vermilion); }
+.seal-small {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  font-size: 1.05rem;
+  transform: rotate(-10deg);
+}
+
+/* ロゴ：「低さバトル」の文字が、1 つずつ低くなってお辞儀する */
+.logo {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1;
+}
+.logo-small { display: block; font-size: 1.15rem; letter-spacing: 0.1em; }
+.logo-big {
+  display: flex;
+  gap: 0.02em;
+  margin-top: 6px;
+  padding-bottom: 0.5em; /* 下がった文字のぶん */
+  font-size: clamp(2.5rem, 12.5vw, 3.6rem);
+}
+.logo-big > span[style] {
+  display: inline-block;
+  transform: translateY(calc(var(--i) * 0.11em)) rotate(calc(var(--i) * 4deg));
+  transform-origin: 50% 90%;
+  animation: bow 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  animation-delay: calc(0.15s + var(--i) * 0.08s);
+}
+@keyframes bow {
+  from { transform: translateY(-0.25em) rotate(0); opacity: 0; }
+}
 
 .rules {
-  margin: 0 auto 10px;
+  margin: 0;
   padding: 0;
   list-style: none;
   text-align: left;
   display: grid;
-  gap: 4px;
-  font-size: 0.95rem;
-  width: fit-content;
+  gap: 6px;
+  font-size: 0.92rem;
+  line-height: 1.55;
 }
-.rules li::before { content: "■ "; color: var(--vermilion); }
-.rules strong { color: var(--vermilion); }
-.rules-sub { font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 16px; }
-.rules-sub li::before { content: "・"; color: var(--ink-soft); }
+.rules li { position: relative; padding-left: 1.2em; }
+.rules li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 50%;
+  background: var(--shu);
+}
+.rules strong { color: var(--fusen); }
+
+/* 名刺交換の相手：ミニ名刺 6 枚 */
+.ranks { width: 100%; margin: 0; padding: 0; border: 0; }
+.ranks-label {
+  margin: 0 auto 10px;
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+}
+.rank-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 10px; }
+.rank-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 10px 8px;
+  border-width: 2.5px;
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+  text-align: left;
+}
+.rank-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.rank-co { font-size: 0.58rem; font-weight: 700; color: var(--ink-soft); }
+.rank-name { font-family: var(--font-display); font-size: 1.12rem; line-height: 1.2; }
+.rank-stars { font-size: 0.58rem; letter-spacing: 0.04em; color: var(--shu); }
+/* 選んだ相手：名刺が少し持ち上がり、「指名」のハンコが押される */
+.rank-btn[aria-checked="true"] {
+  border-color: var(--shu);
+  transform: translateY(-4px) rotate(-1.5deg);
+  box-shadow: 0 6px 0 var(--shu-deep);
+}
+.rank-btn[aria-checked="true"]::after {
+  content: "指名";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--shu);
+  border-radius: 50%;
+  color: var(--shu);
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  transform: rotate(14deg);
+}
+.rank-note { margin: 12px 0 0; min-height: 1.3em; font-size: 0.85rem; font-weight: 700; color: var(--on-stripe-soft); }
+
+/* くわしいルール：開くと付箋が出てくる */
+.rules-more { width: 100%; text-align: left; }
+.rules-more summary {
+  width: fit-content;
+  margin: 0 auto;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--on-stripe-soft);
+  padding: 4px 8px;
+}
+.rules-more summary:focus-visible { outline: 3px solid var(--fusen); outline-offset: 2px; border-radius: 6px; }
+.rules-sub {
+  margin: 10px 0 0;
+  padding: 14px 16px 12px;
+  border-radius: 2px;
+  background: var(--fusen);
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  box-shadow: 0 4px 0 var(--fusen-edge);
+  transform: rotate(0.8deg);
+}
+.rules-sub li::before { background: var(--ink); }
 .rules-sub strong { color: var(--ink); }
 
-.result-title {
-  margin: 0 0 8px;
-  font-family: var(--font-pop);
-  font-weight: 400;
-  font-size: 1.7rem;
-  color: var(--vermilion);
+/* 結果：名刺に「成立」のハンコ */
+.result-card { padding-bottom: 16px; }
+.seal-result {
+  position: absolute;
+  top: 8px;
+  right: 14px;
+  width: 86px;
+  height: 86px;
+  border-width: 4px;
+  font-size: 1.55rem;
+  transform: rotate(-14deg);
+  background: rgba(255, 255, 255, 0.6);
+  animation: stamp 0.45s cubic-bezier(0.2, 1.4, 0.4, 1) 0.2s both;
 }
-.result-text { margin: 0 0 14px; line-height: 1.6; }
+.seal-result::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 2px solid var(--shu);
+  border-radius: 50%;
+}
+.seal-result.is-long { font-size: 1.1rem; }
+@keyframes stamp {
+  from { transform: scale(2.4) rotate(-30deg); opacity: 0; }
+  60% { opacity: 1; }
+}
+
+/* ハンコの下に文字がもぐらないように、見出しの右をあける */
+.result-card .meishi-head { margin-right: 92px; }
+.result-title {
+  margin: 14px 96px 10px 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+.result-text { margin: 0 0 12px; font-size: 0.9rem; line-height: 1.65; color: var(--ink); }
 
 .stats {
   display: grid;
-  grid-template-columns: auto auto;
-  justify-content: center;
-  gap: 4px 16px;
-  margin: 0 0 18px;
-  font-size: 0.9rem;
+  grid-template-columns: auto 1fr;
+  margin: 0;
+  font-size: 0.85rem;
 }
-.stats dt { color: var(--ink-soft); text-align: right; }
-.stats dd { margin: 0; font-weight: 800; text-align: left; font-variant-numeric: tabular-nums; }
+.stats dt,
+.stats dd {
+  padding: 5px 0;
+  border-bottom: 1.5px dotted var(--card-line);
+}
+.stats dt { color: var(--ink-soft); font-weight: 700; padding-right: 14px; }
+.stats dd { margin: 0; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
 
 .result-buttons {
   display: flex;
@@ -312,20 +540,59 @@ html, body {
 
 /* 縦長・小さい画面 */
 @media (max-width: 560px) {
-  .gauges { min-width: 150px; }
-  .gauge { grid-template-columns: 5.8em 1fr; font-size: 0.7rem; }
-  .layer { font-size: 0.78rem; }
+  .gauges { min-width: 168px; padding: 8px 10px; }
+  .gauge { grid-template-columns: 5.9em 1fr; font-size: 0.7rem; }
+  .depth-box { padding: 11px 12px 7px; }
+  .layer { font-size: 0.76rem; }
 }
-@media (max-height: 420px) {
-  .panel { padding: 14px 20px 16px; }
-  .logo { margin-bottom: 6px; font-size: 1.1rem; }
-  .logo-big { font-size: 1.7rem; }
-  .rules { font-size: 0.85rem; gap: 2px; }
-  .rules-sub { font-size: 0.75rem; margin-bottom: 10px; }
-  .btn-main { padding: 10px 28px; font-size: 1.1rem; }
+@media (max-width: 380px) {
+  .rank-name { font-size: 0.98rem; }
+  .rank-btn[aria-checked="true"]::after { width: 24px; height: 24px; font-size: 0.48rem; }
+}
+/* 背がそれほど高くない画面：タイトルを 1 画面に収める */
+@media (max-height: 900px) {
+  .column { gap: 12px; }
+  .meishi-role { display: none; }
+  .meishi-head { padding-bottom: 6px; }
+  .logo { margin-top: 10px; }
+  .logo-big { font-size: clamp(2.3rem, 11vw, 3rem); padding-bottom: 0.4em; }
+  .meishi-address { margin-top: 4px; }
+  .rules { gap: 3px; font-size: 0.88rem; line-height: 1.45; }
+  .rank-grid { gap: 10px 8px; }
+  .rank-btn { padding: 5px 9px 6px; }
+  .rank-note { margin-top: 8px; }
+}
+/* 横長で背が低い画面：左に名刺とルール、右に相手えらびとボタン */
+@media (min-width: 820px) and (max-height: 820px) {
+  .title-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 36px;
+    row-gap: 14px;
+    align-items: center;
+    width: min(100%, 900px);
+  }
+  .title-card { grid-column: 1; grid-row: 1; }
+  .title-column > .rules { grid-column: 1; grid-row: 2; align-self: start; }
+  .title-column > .ranks { grid-column: 2; grid-row: 1; }
+  .title-column > .btn-main { grid-column: 2; grid-row: 2; justify-self: center; align-self: start; }
+  .title-column > .rules-more { grid-column: 1 / -1; }
+}
+/* 横向きのスマホなど、背が低い画面 */
+@media (max-height: 520px) {
+  .column { gap: 10px; }
+  .meishi { padding: 10px 18px 10px; }
+  .meishi-role, .meishi-address { display: none; }
+  .logo-big { font-size: 2.2rem; }
+  .rules { font-size: 0.82rem; gap: 2px; }
+  .btn-main { padding: 9px 36px 11px; font-size: 1.15rem; }
+  .seal-result { top: 6px; width: 70px; height: 70px; font-size: 1.2rem; }
+  .result-card .meishi-head { margin-right: 76px; }
+  .result-title { margin-right: 80px; font-size: 1.25rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .toast, .btn { transition: none; }
   .gauge-ma.is-danger .gauge-bar { animation: none; }
+  .logo-big > span[style], .seal-result { animation: none; }
 }

@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#2f3e66">
-  <meta name="description" content="名刺は相手より低く差し出すのがマナー。取引先の部長と、地球の中心まで名刺を下げ合うゲーム">
+  <meta name="theme-color" content="#1d2a5c">
+  <meta name="description" content="名刺は相手より低く差し出すのがマナー。平社員から社長まで、取引先の相手と地球の中心まで名刺を下げ合う読み合いのゲーム">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>名刺交換 低さバトル</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Mochiy+Pop+One&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap">
   <!-- ?v= は版の番号。GitHub Pages はファイルを 10 分ほどキャッシュするので、
        JS や CSS を変えたら番号を上げて、新しい HTML と古い JS が組み合わさらないようにする -->
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <main class="app">
@@ -23,7 +23,9 @@
     <!-- プレイ中の表示 -->
     <div class="hud" id="hud" hidden>
       <div class="hud-top">
+        <!-- 社員証：いまの深さと地層 -->
         <div class="depth-box">
+          <span class="badge-clip" aria-hidden="true"></span>
           <div class="depth" id="depth">床から 120 cm</div>
           <div class="layer" id="layer">🏢 オフィス</div>
         </div>
@@ -38,59 +40,82 @@
             <span class="gauge-bar"><span class="gauge-fill" id="back-fill"></span></span>
           </div>
           <div class="gauge gauge-face">
-            <span class="gauge-label">部長のようす</span>
+            <span class="gauge-label" id="opp-face-label">部長のようす</span>
             <span class="face" id="opp-face">😌 余裕</span>
           </div>
         </div>
       </div>
       <div class="hud-bottom">
-        <button class="btn btn-small" id="surrender" type="button">お先にどうぞ</button>
-        <button class="btn btn-hold" id="hold" type="button">さげる<span class="hold-arrow" aria-hidden="true">⬇</span></button>
+        <button class="btn btn-sub" id="surrender" type="button">お先にどうぞ</button>
+        <button class="btn btn-hold" id="hold" type="button"><span class="hold-ring" aria-hidden="true"></span><span class="hold-label">さげる</span><span class="hold-arrow" aria-hidden="true">▼</span></button>
       </div>
     </div>
 
     <div class="toast" id="toast" aria-live="polite"></div>
 
-    <!-- タイトル -->
+    <!-- タイトル：画面そのものを、1 枚の大きな名刺にする -->
     <section class="overlay" id="title-screen">
-      <div class="panel">
-        <p class="kicker">ビジネスマナー実践ゲーム</p>
-        <h1 class="logo">名刺交換<br><span class="logo-big">低さバトル</span></h1>
+      <div class="column title-column">
+        <div class="meishi title-card">
+          <div class="meishi-head">
+            <span class="meishi-company">株式会社 低姿勢</span>
+            <span class="seal seal-small" aria-hidden="true">低</span>
+          </div>
+          <p class="meishi-role">ビジネスマナー実践ゲーム</p>
+          <h1 class="logo">
+            <span class="logo-small">名刺交換</span>
+            <span class="logo-big"><span class="sr-only">低さバトル</span><span style="--i:0" aria-hidden="true">低</span><span style="--i:1" aria-hidden="true">さ</span><span style="--i:2" aria-hidden="true">バ</span><span style="--i:3" aria-hidden="true">ト</span><span style="--i:4" aria-hidden="true">ル</span></span>
+          </h1>
+          <p class="meishi-address">〒 地球の中心（地下 6,371 km）</p>
+        </div>
         <ul class="rules">
           <li>名刺は<strong>相手より低く</strong>差し出すのがマナー</li>
           <li>2人とも止まると<strong>「間」</strong>ができ、間が満ちたら名刺交換。<strong>そのとき低いほうの勝ち</strong></li>
-          <li><strong>部長の腰は見えない</strong>。顔色から読め（ただし部長はやせがまんも、疲れたふりもする）</li>
+          <li><strong>相手の腰は見えない</strong>。顔色から読め（ただし相手はやせがまんも、疲れたふりもする）</li>
         </ul>
-        <ul class="rules rules-sub">
-          <li>押しているあいだ名刺が下がる（スペースキーでもOK）。止まると腰が少しずつ回復</li>
-          <li><strong>押しつづけるほど腰にくる</strong>。ちょっとずつ抜くか、ドカンと突き放すか</li>
-          <li>部長に抜かれたら返さないと負け。部長が名刺を差し出すタイミングは毎回ちがう</li>
-          <li>部長も<strong>あなたの汗を見ている</strong>。腰が減っていると、一気に突き放してくる</li>
-          <li>新しい地層に<strong>一番乗り</strong>すると腰が少し回復。地球の中心に着いたら即勝ち</li>
-          <li><strong>電車</strong>や<strong>間欠泉</strong>に当たると押し戻される（部長も）</li>
-          <li>「お先にどうぞ」と言ったら負け</li>
-        </ul>
+        <fieldset class="ranks">
+          <legend class="ranks-label">名刺交換の相手</legend>
+          <div class="rank-grid" id="rank-grid"></div>
+          <p class="rank-note" id="rank-note"></p>
+        </fieldset>
         <button class="btn btn-main" id="start" type="button">名刺を出す</button>
+        <details class="rules-more">
+          <summary>くわしいルール</summary>
+          <ul class="rules rules-sub">
+            <li>押しているあいだ名刺が下がる（スペースキーでもOK）。止まると腰が少しずつ回復</li>
+            <li><strong>押しつづけるほど腰にくる</strong>。ちょっとずつ抜くか、ドカンと突き放すか</li>
+            <li>相手に抜かれたら返さないと負け。相手が名刺を差し出すタイミングは毎回ちがう</li>
+            <li>相手も<strong>あなたの汗を見ている</strong>。腰が減っていると、一気に突き放してくる</li>
+            <li>新しい地層に<strong>一番乗り</strong>すると腰が少し回復。地球の中心に着いたら即勝ち</li>
+            <li><strong>電車</strong>や<strong>間欠泉</strong>に当たると押し戻される（相手も）</li>
+            <li>「お先にどうぞ」と言ったら負け</li>
+          </ul>
+        </details>
       </div>
     </section>
 
-    <!-- 結果 -->
+    <!-- 結果：名刺に「成立」「不成立」のハンコを押す -->
     <section class="overlay" id="result-screen" hidden>
-      <div class="panel">
-        <p class="kicker" id="result-kicker"></p>
-        <h2 class="result-title" id="result-title"></h2>
-        <p class="result-text" id="result-text"></p>
-        <dl class="stats" id="result-stats"></dl>
+      <div class="column">
+        <div class="meishi result-card">
+          <div class="meishi-head">
+            <span class="meishi-company" id="result-kicker"></span>
+          </div>
+          <div class="seal seal-result" id="result-seal" aria-hidden="true"></div>
+          <h2 class="result-title" id="result-title"></h2>
+          <p class="result-text" id="result-text"></p>
+          <dl class="stats" id="result-stats"></dl>
+        </div>
         <div class="result-buttons">
           <button class="btn btn-main" id="retry" type="button">もう一度</button>
-          <a class="btn btn-small btn-link" href="../">ゲーム一覧</a>
+          <a class="btn btn-sub btn-link" href="../">ゲーム一覧</a>
         </div>
       </div>
     </section>
   </main>
 
-  <script src="js/game.js?v=2"></script>
-  <script src="js/fullscreen.js?v=2"></script>
-  <script src="js/main.js?v=2"></script>
+  <script src="js/game.js?v=4"></script>
+  <script src="js/fullscreen.js?v=4"></script>
+  <script src="js/main.js?v=4"></script>
 </body>
 </html>

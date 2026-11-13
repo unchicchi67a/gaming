@@ -135,6 +135,40 @@
     oppAware: 0.5, // じゃまものに気づいて止まる確率
   };
 
+  /**
+   * 相手の役職（難易度）。弱い順。tuning は TUNING を上書きする。
+   * 腰の強さ（oppStamina）、トドメを狙う確率（oppKill）、顔のうその多さ（oppBluff*）、
+   * 諦めやすさ（oppReserve / oppPride）、名刺を差し出すまでの秒数（oppPatience）で強さを変える。
+   */
+  const RANKS = [
+    {
+      id: 'hira', name: '平社員', note: '顔に出やすく、すぐ諦める',
+      tuning: { oppStamina: [0.55, 0.85], oppKill: 0.25, oppBluffCalm: 0.05, oppBluffTired: 0.05, oppReserve: [0.1, 0.2], oppPride: 0.2, oppPatience: [2, 2.8] },
+    },
+    {
+      id: 'kakaricho', name: '係長', note: 'まじめで正直',
+      tuning: { oppStamina: [0.55, 0.95], oppKill: 0.4, oppBluffCalm: 0.15, oppBluffTired: 0.1, oppReserve: [0.1, 0.2], oppPride: 0.3, oppPatience: [1.7, 2.7] },
+    },
+    {
+      id: 'kacho', name: '課長', note: '少しずつ手ごわくなる',
+      tuning: { oppStamina: [0.65, 1.15], oppKill: 0.6, oppBluffCalm: 0.3, oppBluffTired: 0.15, oppReserve: [0.05, 0.15], oppPride: 0.4, oppPatience: [1.5, 2.6] },
+    },
+    { id: 'bucho', name: '部長', note: 'やせがまんもする', tuning: {} },
+    {
+      id: 'kyokucho', name: '局長', note: 'タフで、うそが多い',
+      tuning: { oppStamina: [0.85, 1.4], oppKill: 0.85, oppBluffCalm: 0.5, oppBluffTired: 0.25, oppReserve: [0, 0.05], oppPride: 0.7, oppPatience: [1.2, 2.4] },
+    },
+    {
+      id: 'shacho', name: '社長', note: '容赦なくトドメを刺してくる',
+      tuning: { oppStamina: [1, 1.5], oppKill: 0.95, oppBluffCalm: 0.6, oppBluffTired: 0.3, oppReserve: [0, 0], oppPride: 0.9, oppPatience: [1.1, 2.2], oppReact: [0.3, 1.2] },
+    },
+  ];
+  const DEFAULT_RANK = 'bucho';
+
+  function rankById(id) {
+    return RANKS.find((r) => r.id === id) || RANKS.find((r) => r.id === DEFAULT_RANK);
+  }
+
   const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
 
   /** x にいるときの速さの倍率。床より上はゆっくり、地下は深いほど速い。 */
@@ -268,14 +302,16 @@
 
   /**
    * 新しいゲームを作る。
-   * @param {{ rng?: () => number, tuning?: object }} [opts]
+   * @param {{ rng?: () => number, rank?: string, tuning?: object }} [opts] rank は相手の役職（RANKS の id）
    */
   function createGame(opts) {
     const o = opts || {};
     const rng = o.rng || Math.random;
-    const tuning = Object.assign({}, TUNING, o.tuning || {});
+    const rank = rankById(o.rank);
+    const tuning = Object.assign({}, TUNING, rank.tuning, o.tuning || {});
     const g = {
       rng,
+      rank,
       tuning,
       time: 0,
       state: 'playing', // 'playing' | 'over'
@@ -688,6 +724,9 @@
     SURFACE_STAGES,
     HAZARDS,
     TUNING,
+    RANKS,
+    DEFAULT_RANK,
+    rankById,
     depthAt,
     xAtDepth,
     layerIndexAt,

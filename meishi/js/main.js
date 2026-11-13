@@ -21,6 +21,8 @@
   const TORSO = 52; // 肩から腰まで
   const LEG = 63; // 腰から足先まで
   const BOW_MAX = 1.75; // お辞儀の最大の角度（ラジアン）
+  /** ふちどりの紺（style.css の --ink と同じ）。 */
+  const INK = '#1d2a5c';
 
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -676,7 +678,7 @@
     ctx.font = '700 6px "M PLUS Rounded 1c", sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(who === 'player' ? '平社員' : '部長', left + 6, y - 3);
+    ctx.fillText(who === 'player' ? '平社員' : NAMES.opp, left + 6, y - 3);
     ctx.fillStyle = '#aaa';
     ctx.fillRect(left + 6, y + 3, w - 11, 1.5);
     ctx.fillRect(left + 6, y + 6, w - 16, 1.5);
@@ -692,24 +694,45 @@
     const b = bubbles[who];
     if (!b || now > b.until) return;
     const side = who === 'player' ? -1 : 1;
-    ctx.font = '700 12px "M PLUS Rounded 1c", sans-serif';
+    ctx.font = '800 12.5px "M PLUS Rounded 1c", sans-serif';
     const tw = ctx.measureText(b.text).width;
-    const bw = tw + 18, bh = 26;
+    const bw = tw + 22, bh = 28, r = 12;
     const ax = cardX + side * 40;
     const ay = toScreenY(cardWorldY(x)) - 70;
     let bx = side < 0 ? ax - bw : ax;
     bx = clamp(bx, 6, VW - bw - 6);
     const by = clamp(ay - bh, 70, VH - bh - 90);
-    ctx.fillStyle = '#fffdf7';
-    ctx.strokeStyle = '#1f2a4a';
-    ctx.lineWidth = 2;
-    roundRect(bx, by, bw, bh, 10);
+    // しっぽは、話している人のほうに向ける
+    const tx = clamp(cardX + side * 22, bx + r + 8, bx + bw - r - 8);
+    // かたい影 → 白い吹き出し → 紺のふちどり（ほかの画面の部品とそろえる）
+    ctx.fillStyle = INK;
+    bubblePath(bx, by + 3, bw, bh, r, tx);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    bubblePath(bx, by, bw, bh, r, tx);
     ctx.fill();
     ctx.stroke();
-    ctx.fillStyle = '#1f2a4a';
+    ctx.fillStyle = INK;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(b.text, bx + bw / 2, by + bh / 2 + 1);
+  }
+
+  /** 角の丸い吹き出しに、下向きのしっぽ（tx の位置）をつけた形。 */
+  function bubblePath(x, y, w, h, r, tx) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.lineTo(tx + 7, y + h);
+    ctx.lineTo(tx, y + h + 10);
+    ctx.lineTo(tx - 7, y + h);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   function roundRect(x, y, w, h, r) {
@@ -858,7 +881,7 @@
     maFill.style.width = `${clamp(game.ma / full, 0, 1) * 100}%`;
     for (const k of ['player', 'opp', 'even']) maGauge.classList.toggle(`is-${k}`, lower === k);
     maGauge.classList.toggle('is-danger', lower === 'opp' && game.reached);
-    const note = game.ma <= 0 ? '' : MA_NOTES[lower === 'opp' && game.reached ? 'reach' : lower];
+    const note = game.ma <= 0 ? '' : withOpp(MA_NOTES[lower === 'opp' && game.reached ? 'reach' : lower]);
     if (maNote.textContent !== note) maNote.textContent = note;
     maNote.className = `ma-note is-${lower}`;
     backFill.style.width = `${p.stamina * 100}%`;
@@ -869,8 +892,8 @@
 
   const MA_NOTES = {
     player: 'このまま間が満ちれば勝ち',
-    opp: '部長がいつ名刺を出すか…',
-    reach: '部長が名刺を差し出しかけた！',
+    opp: '{opp}がいつ名刺を出すか…',
+    reach: '{opp}が名刺を差し出しかけた！',
     even: 'お見合い中…',
   };
   const FACES = { calm: '😌 余裕', sweat: '😅 汗', tired: '😩 ハァハァ' };
@@ -887,7 +910,10 @@
   const PLAYER_LINES = ['いえいえ！', 'こちらこそ！', 'わたくしなど！', 'めっそうもない！', 'いえいえいえ！'];
   const OPP_LINES = ['いえいえ、わたくしなど', 'とんでもございません', 'こちらこそ', 'いえいえいえ', 'どうかお納めを'];
 
+  /** opp は相手の役職名（ゲームを始めるときに決まる）。 */
   const NAMES = { player: 'あなた', opp: '部長' };
+  /** 文章の {opp} を相手の役職名にする。 */
+  const withOpp = (text) => text.replace(/\{opp\}/g, NAMES.opp);
   const FACE_LINES = {
     calm: ['（にこにこ）', 'まだまだ', '（涼しい顔）'],
     sweat: ['（汗をふく）', 'ふう……', 'なかなか……'],
@@ -906,14 +932,14 @@
       if (e.type === 'overtake' && now - lastBubbleAt.player > 1.2) say('player', pick(PLAYER_LINES), 1.2);
       if (e.type === 'overtaken' && now - lastBubbleAt.opp > 1.2) say('opp', pick(OPP_LINES), 1.4);
       if (e.type === 'oppAnswer' && e.big) {
-        toast('⚡ 部長が大きく下げてきた！');
+        toast(`⚡ ${NAMES.opp}が大きく下げてきた！`);
         say('opp', 'いえいえいえいえ！', 1.4);
       }
       // 下げおわった部長が見せる顔（うそのこともある）
       if (e.type === 'oppDone') say('opp', pick(FACE_LINES[game.opp.face]), 1.6);
       if (e.type === 'oppReach') {
         say('opp', 'では、改めまして……', 1.6);
-        toast('⚠️ 部長が名刺を差し出しかけた！');
+        toast(`⚠️ ${NAMES.opp}が名刺を差し出しかけた！`);
       }
       if (e.type === 'stage') {
         const stage = SURFACE_STAGES[e.index];
@@ -921,7 +947,7 @@
           toast(`🙇 ${stage.name}`);
           if (e.first && stage.line) say('opp', stage.line, 2);
         } else if (e.first) {
-          toast(`🙇 部長が${stage.name}`);
+          toast(`🙇 ${NAMES.opp}が${stage.name}`);
           say('player', 'い、いえいえ！', 1.4);
         }
       }
@@ -953,10 +979,60 @@
     }
   }
 
+  // ---------- 相手の役職（難易度） ----------
+  const SETTINGS_KEY = 'meishi.settings.v1';
+  let rankId = loadRank();
+
+  function loadRank() {
+    try {
+      const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      return G.rankById(s.rank).id;
+    } catch (err) {
+      return G.DEFAULT_RANK;
+    }
+  }
+
+  function saveRank() {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ rank: rankId }));
+    } catch (err) { /* 保存できなくても遊べる */ }
+  }
+
+  const rankGrid = $('rank-grid');
+  const rankNote = $('rank-note');
+  G.RANKS.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn rank-btn';
+    b.setAttribute('role', 'radio');
+    b.dataset.rank = r.id;
+    // ミニ名刺：会社名・役職・難しさ
+    b.innerHTML = `<span class="rank-co" aria-hidden="true">取引先</span><span class="rank-name"></span><span class="rank-stars" aria-hidden="true"></span>`;
+    b.querySelector('.rank-name').textContent = r.name;
+    b.querySelector('.rank-stars').textContent = '★'.repeat(i + 1) + '☆'.repeat(G.RANKS.length - i - 1);
+    b.setAttribute('aria-label', `${r.name}（難しさ ${i + 1} / ${G.RANKS.length}）`);
+    b.addEventListener('click', () => {
+      rankId = r.id;
+      saveRank();
+      showRank();
+    });
+    rankGrid.appendChild(b);
+  });
+  rankGrid.setAttribute('role', 'radiogroup');
+  rankGrid.setAttribute('aria-label', '名刺交換の相手');
+
+  function showRank() {
+    for (const b of rankGrid.children) b.setAttribute('aria-checked', String(b.dataset.rank === rankId));
+    rankNote.textContent = G.rankById(rankId).note;
+  }
+  showRank();
+
   // ---------- 流れ ----------
   function startGame() {
     clearTimeout(endingTimer);
-    game = G.createGame();
+    game = G.createGame({ rank: rankId });
+    NAMES.opp = game.rank.name;
+    $('opp-face-label').textContent = `${NAMES.opp}のようす`;
     mode = 'playing';
     particles = [];
     bubbles = { player: null, opp: null };
@@ -998,7 +1074,7 @@
       burst(VW / 2, cardWorldY(GOAL), 40, '#fff3b0');
     }
     if (result === 'back' || result === 'oppBack') {
-      toast(result === 'back' ? '💥 グキッ' : '💥 部長の腰がグキッ');
+      toast(result === 'back' ? '💥 グキッ' : `💥 ${NAMES.opp}の腰がグキッ`);
       shake = 0.6;
     }
     if (result === 'draw') {
@@ -1011,15 +1087,15 @@
   const RESULTS = {
     win: {
       kicker: 'ご契約成立',
-      text: '間が満ちたとき、あなたの名刺が下でした。部長は下げ返すのを諦め、先に名刺を受け取ってくれました。',
+      text: '間が満ちたとき、あなたの名刺が下でした。{opp}は下げ返すのを諦め、先に名刺を受け取ってくれました。',
     },
     center: {
       kicker: 'ご契約成立',
-      text: '地球の中心で、ついに部長が「お先にどうぞ」と言いました。名刺は 6,000℃ で燃えつきましたが、商談はまとまりました。',
+      text: '地球の中心で、ついに{opp}が「お先にどうぞ」と言いました。名刺は 6,000℃ で燃えつきましたが、商談はまとまりました。',
     },
     oppBack: {
       kicker: 'ご契約成立（労災）',
-      text: '張りあいすぎた部長の腰が、先に限界をむかえました。商談は、お見舞いのあとでまとまりました。',
+      text: '張りあいすぎた{opp}の腰が、先に限界をむかえました。商談は、お見舞いのあとでまとまりました。',
     },
     draw: {
       kicker: '引き分け',
@@ -1028,8 +1104,8 @@
     },
     rude: {
       kicker: '商談失敗',
-      title: '部長に先を越された',
-      text: '間が満ちたとき、部長の名刺のほうが低い位置にありました。部長は満足そうに名刺を差し出しました。',
+      title: '{opp}に先を越された',
+      text: '間が満ちたとき、{opp}の名刺のほうが低い位置にありました。{opp}は満足そうに名刺を差し出しました。',
     },
     back: {
       kicker: '労災',
@@ -1038,13 +1114,13 @@
     },
     beaten: {
       kicker: '商談失敗',
-      title: '部長が先に地球の中心へ',
+      title: '{opp}が先に地球の中心へ',
       text: 'これより下はありません。あなたの名刺は、もう下げられません。',
     },
     surrender: {
       kicker: 'マナー違反',
       title: '「お先にどうぞ」と言ってしまった',
-      text: '部長「では」。部長は平然とあなたの名刺を受け取りました。',
+      text: '{opp}「では」。{opp}は平然とあなたの名刺を受け取りました。',
     },
   };
 
@@ -1055,18 +1131,30 @@
     $('result-kicker').textContent = r.kicker;
     const won = ['win', 'center', 'oppBack'].includes(game.result);
     const where = game.exchangeX != null ? game.exchangeX : Math.max(game.player.x, game.opp.x);
-    $('result-title').textContent = won ? `称号：${G.rankFor(where)}` : r.title;
-    $('result-text').textContent = r.text;
+    $('result-title').textContent = won ? `称号：${G.rankFor(where)}` : withOpp(r.title);
+    $('result-text').textContent = withOpp(r.text);
+    // 名刺に押すハンコ（出すたびにアニメーションをやり直す）
+    const seal = $('result-seal');
+    const sealText = won ? '成立' : game.result === 'draw' ? '引分' : '不成立';
+    seal.textContent = sealText;
+    seal.classList.toggle('is-long', sealText.length > 2);
+    seal.style.animation = 'none';
+    void seal.offsetWidth;
+    seal.style.animation = '';
     const stats = $('result-stats');
     stats.textContent = '';
     // 部長の腰の種明かし（読みが当たっていたかの答え合わせ）
     const o = game.opp;
-    const strength = o.max >= 1.15 ? 'タフ' : o.max <= 0.85 ? 'ひ弱' : 'ふつう';
+    // 腰の強さは、その役職の幅の中でどのあたりか
+    const [lo, hi] = game.tuning.oppStamina;
+    const k = hi > lo ? (o.max - lo) / (hi - lo) : 0.5;
+    const strength = k >= 0.67 ? 'タフなほう' : k <= 0.33 ? 'ひ弱なほう' : 'ふつう';
     const rows = [
+      ['相手', NAMES.opp],
       [game.exchangeX != null ? '名刺交換した場所' : '決着した場所', G.formatDepth(where)],
       ['かかった時間', `${game.time.toFixed(1)} 秒`],
-      ['部長が下げ返した回数', `${game.stats.answers} 回`],
-      ['部長の腰（種明かし）', `残り ${Math.round(o.stamina * 100)}%（今回の部長は${strength}：最大 ${Math.round(o.max * 100)}%）`],
+      [`${NAMES.opp}が下げ返した回数`, `${game.stats.answers} 回`],
+      [`${NAMES.opp}の腰（種明かし）`, `残り ${Math.round(o.stamina * 100)}%（今回の${NAMES.opp}は${strength}：最大 ${Math.round(o.max * 100)}%）`],
       ['あなたの腰', `残り ${Math.round(game.player.stamina * 100)}%`],
     ];
     for (const [k, v] of rows) {
