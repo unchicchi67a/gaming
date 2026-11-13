@@ -2,16 +2,19 @@
  * 名刺交換・低さバトルのゲームロジック（描画なし）。
  *
  * 名刺は相手より低い位置から差し出すのがマナー。相手（取引先の部長）も負けじと下げてくるので、
- * 床をぶち抜き、地層を掘り進み、地球の中心まで下げ合う。
+ * お辞儀からひざをつき、土下座して、床をぶち抜き、地層を掘り進み、地球の中心まで下げ合う。
  *
- * 位置は「下げた量」x（0 = 胸の高さ、SURFACE = 床、GOAL = 地球の中心）で表す。
- * 画面ではスクロール量が x に比例し、表示する深さ（メートル）は depthAt(x) で決める。
- * 深くなるほど同じ x でたくさん進むので、地下鉄からマントルまで同じくらいの時間で通り過ぎる。
+ * 位置は「下げた量」x で表す。
+ * - 0〜SURFACE：床より上。お辞儀の段階（SURFACE_STAGES）を順に進む
+ * - SURFACE：床。床を掘りきる（floorHp を 0 にする）まで、それより下には行けない
+ * - SURFACE〜GOAL：地下。表示する深さ（メートル）は depthAt(x) で決める。
+ *   深くなるほど同じ x でたくさん進むので、地下鉄からマントルまで同じくらいの時間で通り過ぎる
  *
  * ルール：
  * - 押しているあいだ自分の名刺が下がる。押しているあいだは腰ゲージが減り、離すと回復する
  * - 腰ゲージが 0 になったら「ぎっくり腰」で負け
  * - 相手より名刺が高いあいだは失礼ゲージがたまり、満タンになったら負け（低いあいだは減る）
+ * - 地下鉄の電車・温泉の間欠泉（HAZARDS）に当たると、気絶して上に押し戻される。部長も当たる
  * - 先に地球の中心に着いたら勝ち。相手に先に着かれたら負け
  * - 「お先にどうぞ」と言ったら負け
  *
@@ -27,39 +30,50 @@
   'use strict';
 
   /** 名刺が床に着く位置。 */
-  const SURFACE = 10;
+  const SURFACE = 30;
   /** 地球の中心。 */
-  const GOAL = 200;
+  const GOAL = SURFACE + 190;
   /** 最初に名刺を持っている高さ（床からのメートル）。 */
   const START_HEIGHT = 1.2;
   /** 地球の半径（メートル）。 */
   const EARTH_RADIUS = 6371000;
 
   /**
-   * x と深さ（メートル）の対応点。あいだは ln(深さ + 0.5) で直線補間する。
+   * 床からの x と深さ（メートル）の対応点。あいだは ln(深さ + 0.5) で直線補間する。
    * 地層ごとにだいたい同じ長さになるように置いている。
    */
   const ANCHORS = [
-    [10, 0],
-    [25, 3],
-    [40, 15],
-    [55, 40],
-    [70, 150],
-    [85, 800],
-    [100, 2500],
-    [115, 8000],
-    [130, 35000],
-    [160, 2900000],
-    [180, 5150000],
-    [200, EARTH_RADIUS],
+    [0, 0],
+    [15, 3],
+    [30, 15],
+    [45, 40],
+    [60, 150],
+    [75, 800],
+    [90, 2500],
+    [105, 8000],
+    [120, 35000],
+    [150, 2900000],
+    [170, 5150000],
+    [190, EARTH_RADIUS],
+  ].map(([x, d]) => [x + SURFACE, d]);
+
+  /** 床より上の段階。line は、自分が先にその段階になったときの部長のひとこと。 */
+  const SURFACE_STAGES = [
+    { x: 0, name: '名刺を出す', line: null },
+    { x: 4, name: '会釈', line: 'これはご丁寧に' },
+    { x: 9, name: '敬礼', line: 'いえいえ、こちらこそ' },
+    { x: 14, name: '最敬礼', line: 'とんでもございません' },
+    { x: 19, name: 'ひざをつく', line: 'わたくしなどに、そんな' },
+    { x: 24.5, name: '土下座', line: 'どうかお顔をお上げください' },
+    { x: SURFACE, name: '床にはりつく', line: '床、冷たいですね' },
   ];
 
   /** 地層。from は始まる深さ（メートル）。line は、そこに着いたときの部長のひとこと。 */
   const LAYERS = [
     { id: 'office', name: 'オフィス', emoji: '🏢', from: -Infinity, line: null },
-    { id: 'underfloor', name: 'オフィスの床下', emoji: '🔧', from: 0, line: '床、大丈夫ですかね' },
+    { id: 'underfloor', name: 'オフィスの床下', emoji: '🔧', from: 0, line: '床下、ほこりっぽいですね' },
     { id: 'parking', name: '地下駐車場', emoji: '🚗', from: 3, line: 'お車でいらしたんですか' },
-    { id: 'subway', name: '地下鉄', emoji: '🚇', from: 15, line: 'あ、終電まだありますね' },
+    { id: 'subway', name: '地下鉄', emoji: '🚇', from: 15, line: '電車、来ないといいですね' },
     { id: 'water', name: '地下水脈', emoji: '💧', from: 40, line: 'いいお水ですねえ' },
     { id: 'fossil', name: '化石の地層', emoji: '🦴', from: 150, line: 'この地層、白亜紀ですね' },
     { id: 'onsen', name: '温泉の源泉', emoji: '♨️', from: 800, line: 'いいお湯ですねえ' },
@@ -70,20 +84,34 @@
     { id: 'inner', name: '内核', emoji: '☀️', from: 5150000, line: 'そろそろ中心ですね' },
   ];
 
+  /**
+   * じゃまもの。名刺が from〜to（x）にあるときに active になると当たる。
+   * idle（何もない）→ warn（予告）→ active（当たる）→ idle をくり返す。
+   * 当たると stun 秒気絶し、from より knock だけ上に押し戻される。
+   */
+  const HAZARDS = [
+    { id: 'train', name: '電車', emoji: '🚃', from: 0, to: 0, depthFrom: 22, depthTo: 30, warn: 1.6, active: 1.4, idle: [2.5, 5], stun: 2.2, knock: 2 },
+    { id: 'geyser', name: '間欠泉', emoji: '♨️', from: 0, to: 0, depthFrom: 1150, depthTo: 1650, warn: 1.4, active: 1.2, idle: [2.5, 5], stun: 1.6, knock: 6 },
+  ];
+
   /** 調整用の値。 */
   const TUNING = {
     playerVmax: 9, // 押しているときの最高速度（x / 秒）
+    surfaceSlow: 0.55, // 床より上では、速度をこの割合にする（地上のやりとりを長く見せる）
     accel: 28, // 押しはじめの加速
     decel: 45, // 離したときの減速
-    drain: 0.24, // 押しているあいだに減る腰ゲージ（1 秒あたり）
-    recover: 0.32, // 離しているあいだに回復する腰ゲージ（1 秒あたり）
-    rudeUp: 0.2, // 相手より高いあいだにたまる失礼ゲージ（1 秒あたり）
-    rudeDown: 0.08, // 相手より低いあいだに減る失礼ゲージ（1 秒あたり）
-    tolerance: 0.4, // この差までは「同じ高さ」とみなす
-    oppVmin: 8.9, // 部長の速度（浅いところ）
-    oppVmax: 10.4, // 部長の速度（地球の中心近く）
+    drain: 0.22, // 押しているあいだに減る腰ゲージ（1 秒あたり）
+    recover: 0.34, // 離しているあいだに回復する腰ゲージ（1 秒あたり）
+    floorTime: 1.4, // 床を掘りきるのに押しつづける秒数
+    rudeUp: 0.1, // 相手より高いあいだにたまる失礼ゲージ（1 秒あたり）
+    rudeDown: 0.12, // 相手より低いあいだに減る失礼ゲージ（1 秒あたり）
+    tolerance: 1, // この差までは「同じ高さ」とみなす
+    oppVmin: 9, // 部長の速度（浅いところ）
+    oppVmax: 9.8, // 部長の速度（地球の中心近く）
     oppDrain: 0.24,
     oppRecover: 0.3,
+    oppReact: [0.4, 0.9], // 抜かれてから下げはじめるまでの秒数
+    oppAware: 0.5, // じゃまものに気づいて止まる確率
   };
 
   const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
@@ -119,6 +147,11 @@
     return GOAL;
   }
 
+  for (const h of HAZARDS) {
+    h.from = xAtDepth(h.depthFrom);
+    h.to = xAtDepth(h.depthTo);
+  }
+
   /** x のときにいる地層のインデックス（LAYERS の添字）。 */
   function layerIndexAt(x) {
     if (x <= SURFACE) return 0;
@@ -126,6 +159,15 @@
     let idx = 1;
     for (let i = 1; i < LAYERS.length; i++) {
       if (d >= LAYERS[i].from) idx = i;
+    }
+    return idx;
+  }
+
+  /** x のときの床より上の段階（SURFACE_STAGES の添字）。 */
+  function stageIndexAt(x) {
+    let idx = 0;
+    for (let i = 0; i < SURFACE_STAGES.length; i++) {
+      if (x >= SURFACE_STAGES[i].x) idx = i;
     }
     return idx;
   }
@@ -143,9 +185,9 @@
 
   /** 勝ったときの称号（かかった秒数から）。 */
   function rankFor(seconds) {
-    if (seconds < 37) return '名刺交換の神';
-    if (seconds < 42) return '伝説の営業';
-    if (seconds < 55) return 'できる社会人';
+    if (seconds < 44) return '名刺交換の神';
+    if (seconds < 50) return '伝説の営業';
+    if (seconds < 60) return 'できる社会人';
     return '期待の新人';
   }
 
@@ -158,6 +200,12 @@
       t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
+  }
+
+  const rand = (g, [lo, hi]) => lo + g.rng() * (hi - lo);
+
+  function makeMover() {
+    return { x: 0, v: 0, stamina: 1, floorHp: 1, stun: 0, stage: 0, hitBy: {} };
   }
 
   /**
@@ -174,28 +222,75 @@
       time: 0,
       state: 'playing', // 'playing' | 'over'
       result: null, // 'win' | 'rude' | 'back' | 'beaten' | 'surrender'
-      player: { x: 0, v: 0, stamina: 1 },
-      opp: { x: 0, v: 0, stamina: 1, mode: 'rest', react: 0, margin: 2, restUntil: 0.6 },
+      player: makeMover(),
+      opp: Object.assign(makeMover(), { mode: 'rest', react: 0, margin: 2, restUntil: 0.6, aware: {} }),
+      hazards: HAZARDS.map(() => ({ phase: 'idle', timer: 0, cycle: 0 })),
       rude: 0,
       lowerTime: 0, // 相手より低かった合計の秒数
       deepestLayer: 0, // どちらかが着いたいちばん深い地層
       playerLower: false, // いま自分のほうが低いか（追い抜き・追い抜かれの判定用）
     };
+    g.hazards.forEach((h, i) => { h.timer = rand(g, HAZARDS[i].idle); });
+    rollAwareness(g);
     resetOppPlan(g);
-    g.opp.react = 0.8; // 最初は少し様子を見る
+    g.opp.react = 1.2; // 最初は少し様子を見る
     return g;
   }
 
   function resetOppPlan(g) {
     const o = g.opp;
-    o.margin = 1.2 + g.rng() * 2.8;
-    o.restUntil = 0.35 + g.rng() * 0.5;
-    o.react = 0.25 + g.rng() * 0.45;
+    o.margin = 1.5 + g.rng() * 2.5;
+    o.restUntil = 0.55 + g.rng() * 0.4;
+    o.react = rand(g, g.tuning.oppReact);
+  }
+
+  /** 部長が、それぞれのじゃまものに今回気づくかどうかを決める。 */
+  function rollAwareness(g) {
+    for (const h of HAZARDS) g.opp.aware[h.id] = g.rng() < g.tuning.oppAware;
   }
 
   function oppSpeed(g) {
     const t = g.tuning;
     return t.oppVmin + (t.oppVmax - t.oppVmin) * clamp(g.opp.x / GOAL, 0, 1);
+  }
+
+  /** じゃまものが予告中か当たる状態で、x の少し下にあるか（部長が止まるかどうかの判定用）。 */
+  function dangerAhead(g, x) {
+    for (let i = 0; i < HAZARDS.length; i++) {
+      const h = HAZARDS[i];
+      const s = g.hazards[i];
+      if (s.phase === 'idle' || !g.opp.aware[h.id]) continue;
+      if (x < h.to && x > h.from - 3) return h;
+    }
+    return null;
+  }
+
+  /** 自分か部長を、dt 秒ぶん動かす。床では、床を掘りきるまで止まる。 */
+  function move(g, m, dt, pushing, vmax, drain, recover, who, events) {
+    const t = g.tuning;
+    if (m.stun > 0) {
+      m.stun = Math.max(0, m.stun - dt);
+      m.v = 0;
+      m.stamina = Math.min(1, m.stamina + recover * dt);
+      return;
+    }
+    if (pushing) {
+      m.v = Math.min(vmax, m.v + t.accel * dt);
+      m.stamina -= drain * dt;
+    } else {
+      m.v = Math.max(0, m.v - t.decel * dt);
+      m.stamina = Math.min(1, m.stamina + recover * dt);
+    }
+    const speed = m.x < SURFACE ? m.v * t.surfaceSlow : m.v;
+    let nx = Math.min(GOAL, m.x + speed * dt);
+    if (m.floorHp > 0 && nx >= SURFACE) {
+      nx = SURFACE;
+      if (pushing) {
+        m.floorHp = Math.max(0, m.floorHp - dt / t.floorTime);
+        if (m.floorHp === 0) events.push({ type: 'floorBreak', who });
+      }
+    }
+    m.x = nx;
   }
 
   /** 部長の動き。自分のほうが低くないと気が済まないが、腰には限界がある。 */
@@ -207,36 +302,64 @@
     const behind = o.x < want;
     let pushing = false;
 
-    if (o.mode === 'rest') {
+    if (o.stun > 0) {
+      o.mode = 'rest';
+    } else if (o.mode === 'rest') {
       if (behind) {
         o.react -= dt;
-        const overtaken = p.x > o.x + t.tolerance;
-        if (o.react <= 0 && (o.stamina >= o.restUntil || (overtaken && o.stamina > 0.3))) {
-          o.mode = 'push';
-        }
+        if (o.react <= 0 && o.stamina >= o.restUntil) o.mode = 'push';
       } else {
-        o.react = Math.max(o.react, 0.2);
+        o.react = Math.max(o.react, rand(g, t.oppReact));
       }
     }
     if (o.mode === 'push') {
-      if (!behind || o.stamina < 0.06) {
+      if (!behind || o.stamina < 0.08) {
         o.mode = 'rest';
-        if (o.stamina < 0.06) events.push({ type: 'oppTired' });
+        if (o.stamina < 0.08) events.push({ type: 'oppTired' });
         resetOppPlan(g);
+      } else if (dangerAhead(g, o.x)) {
+        pushing = false; // 気づいたので、通りすぎるまで待つ
       } else {
         pushing = true;
       }
     }
+    move(g, o, dt, pushing, oppSpeed(g), t.oppDrain, t.oppRecover, 'opp', events);
+  }
 
-    const vmax = oppSpeed(g);
-    if (pushing) {
-      o.v = Math.min(vmax, o.v + t.accel * dt);
-      o.stamina = Math.max(0, o.stamina - t.oppDrain * dt);
-    } else {
-      o.v = Math.max(0, o.v - t.decel * dt);
-      o.stamina = Math.min(1, o.stamina + t.oppRecover * dt);
+  /** じゃまものを進め、当たった人を気絶させて押し戻す。 */
+  function stepHazards(g, dt, events) {
+    for (let i = 0; i < HAZARDS.length; i++) {
+      const h = HAZARDS[i];
+      const s = g.hazards[i];
+      s.timer -= dt;
+      if (s.timer <= 0) {
+        if (s.phase === 'idle') {
+          s.phase = 'warn';
+          s.timer = h.warn;
+          events.push({ type: 'hazardWarn', id: h.id });
+        } else if (s.phase === 'warn') {
+          s.phase = 'active';
+          s.timer = h.active;
+          s.cycle++;
+          events.push({ type: 'hazardStart', id: h.id });
+        } else {
+          s.phase = 'idle';
+          s.timer = rand(g, h.idle);
+          g.opp.aware[h.id] = g.rng() < g.tuning.oppAware;
+        }
+      }
+      if (s.phase !== 'active') continue;
+      for (const who of ['player', 'opp']) {
+        const m = g[who];
+        if (m.x >= h.from && m.x <= h.to && m.hitBy[h.id] !== s.cycle) {
+          m.hitBy[h.id] = s.cycle;
+          m.stun = h.stun;
+          m.v = 0;
+          m.x = Math.max(SURFACE + 0.01, h.from - h.knock);
+          events.push({ type: 'hit', who, id: h.id });
+        }
+      }
     }
-    o.x = Math.min(GOAL, o.x + o.v * dt);
   }
 
   function finish(g, result, events) {
@@ -252,20 +375,22 @@
     const t = g.tuning;
     g.time += dt;
 
-    // 自分
-    if (holding) {
-      p.v = Math.min(t.playerVmax, p.v + t.accel * dt);
-      p.stamina -= t.drain * dt;
-    } else {
-      p.v = Math.max(0, p.v - t.decel * dt);
-      p.stamina = Math.min(1, p.stamina + t.recover * dt);
-    }
-    p.x = Math.min(GOAL, p.x + p.v * dt);
-
-    // 部長
+    move(g, p, dt, holding, t.playerVmax, t.drain, t.recover, 'player', events);
     stepOpp(g, dt, events);
+    stepHazards(g, dt, events);
 
-    // 床をぶち抜いた・新しい地層に着いた
+    // 床より上の段階
+    for (const who of ['player', 'opp']) {
+      const m = g[who];
+      const stage = stageIndexAt(m.x);
+      if (stage > m.stage) {
+        const first = stage > g[who === 'player' ? 'opp' : 'player'].stage;
+        m.stage = stage;
+        events.push({ type: 'stage', who, index: stage, first });
+      }
+    }
+
+    // 新しい地層に着いた
     const layer = layerIndexAt(Math.max(p.x, g.opp.x));
     if (layer > g.deepestLayer) {
       g.deepestLayer = layer;
@@ -304,7 +429,11 @@
    *   - { type: 'overtake' }：自分のほうが低くなった
    *   - { type: 'overtaken' }：部長のほうが低くなった
    *   - { type: 'oppTired' }：部長の腰が限界で、ひと休みする
+   *   - { type: 'stage', who, index, first }：床より上の新しい段階になった（first は相手より先か）
+   *   - { type: 'floorBreak', who }：床を掘りきった
    *   - { type: 'layer', index, by }：どちらかが新しい地層に着いた（index は LAYERS の添字）
+   *   - { type: 'hazardWarn', id } / { type: 'hazardStart', id }：じゃまものの予告・到来
+   *   - { type: 'hit', who, id }：じゃまものに当たった
    *   - { type: 'over', result }：ゲームが終わった
    */
   function step(g, dt, holding) {
@@ -331,10 +460,13 @@
     START_HEIGHT,
     EARTH_RADIUS,
     LAYERS,
+    SURFACE_STAGES,
+    HAZARDS,
     TUNING,
     depthAt,
     xAtDepth,
     layerIndexAt,
+    stageIndexAt,
     formatDepth,
     rankFor,
     makeRng,

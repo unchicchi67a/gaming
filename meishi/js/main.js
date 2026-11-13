@@ -9,10 +9,12 @@
   'use strict';
 
   const G = window.MeishiGame;
-  const { SURFACE, GOAL, LAYERS } = G;
+  const { SURFACE, GOAL, LAYERS, SURFACE_STAGES, HAZARDS } = G;
 
-  /** x が 1 進むと何ピクセル（設計ピクセル）下がるか。 */
+  /** 地下で、x が 1 進むと何ピクセル（設計ピクセル）下がるか。 */
   const PX = 10.5;
+  /** 床より上で、x が 1 進むと何ピクセル下がるか（胸の高さから床までが 105 ピクセル）。 */
+  const SURF_PX = 105 / SURFACE;
   /** 名刺を持つ手の、画面中央からのずれ。 */
   const HAND_GAP = 16;
   const ARM = 34; // 肩から手まで
@@ -75,7 +77,7 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const smooth = (t) => t * t * (3 - 2 * t);
   const pick = (list) => list[Math.floor(Math.random() * list.length)];
-  const cardWorldY = (x) => (x - SURFACE) * PX;
+  const cardWorldY = (x) => (x - SURFACE) * (x < SURFACE ? SURF_PX : PX);
   const layerWorldY = (i) => (i <= 0 ? -Infinity : cardWorldY(G.xAtDepth(LAYERS[i].from)));
   const toScreenY = (wy) => wy - camY + VH * 0.5;
 
@@ -241,7 +243,6 @@
       // 地層ごとの特別な絵
       const id = LAYERS[i].id;
       if (id === 'underfloor') drawPipes(top);
-      if (id === 'subway') drawSubway(top, bottom);
       if (id === 'mantle' || id === 'outer' || id === 'inner') drawGlow(top, bottom, id);
     }
   }
@@ -257,29 +258,108 @@
     for (let x = 0; x < VW; x += 80) ctx.fillRect(x, y1 - 2, 6, 14);
   }
 
-  function drawSubway(top, bottom) {
-    const mid = (top + bottom) / 2;
-    const y = toScreenY(mid - 26);
+  /** じゃまもの（電車・間欠泉）。 */
+  /** front = false でトンネルなどの背景、true で人の手前に来る電車・噴き上がるお湯。 */
+  function drawHazards(front) {
+    HAZARDS.forEach((h, i) => {
+      const st = game.hazards[i];
+      const top = toScreenY(cardWorldY(h.from) - 10);
+      const bottom = toScreenY(cardWorldY(h.to) + 16);
+      if (bottom < -20 || top > VH + 20) return;
+      if (h.id === 'train') (front ? drawTrain : drawTunnel)(h, st, top, bottom);
+      if (h.id === 'geyser') (front ? drawGeyserBlast : drawGeyser)(h, st, top, bottom);
+    });
+  }
+
+  function drawTunnel(h, st, top, bottom) {
+    const height = bottom - top;
     ctx.fillStyle = '#2a221c';
-    ctx.fillRect(0, y, VW, 52);
+    ctx.fillRect(0, top, VW, height);
     ctx.fillStyle = '#777';
-    ctx.fillRect(0, y + 47, VW, 3);
-    // 電車
-    const period = (VW + 700) / 260;
-    const t = (now % period) * 260;
-    const tx = t - 400;
+    ctx.fillRect(0, bottom - 5, VW, 3);
+    // 信号
+    const blink = st.phase !== 'idle' && Math.floor(now * 6) % 2 === 0;
+    ctx.fillStyle = st.phase === 'idle' ? '#3cb55a' : blink ? '#ff3b30' : '#5a1d18';
+    ctx.beginPath();
+    ctx.arc(VW * 0.7, top + 10, 5, 0, Math.PI * 2);
+    ctx.fill();
+    if (st.phase === 'warn') {
+      // 左から近づいてくるライト
+      const t = 1 - st.timer / h.warn;
+      const grad = ctx.createRadialGradient(0, top + height / 2, 2, 0, top + height / 2, 40 + t * 160);
+      grad.addColorStop(0, 'rgba(255,245,180,0.9)');
+      grad.addColorStop(1, 'rgba(255,245,180,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, top, VW, height);
+    }
+  }
+
+  function drawTrain(h, st, top, bottom) {
+    const height = bottom - top;
+    if (st.phase !== 'active') return;
+    const t = 1 - st.timer / h.active;
+    const len = 420;
+    const tx = lerp(-len, VW + 20, t);
+    const ty = top + 4, th = height - 10;
     ctx.fillStyle = '#d9dde3';
-    ctx.fillRect(tx, y + 8, 360, 38);
+    roundRect(tx, ty, len, th, 8);
+    ctx.fill();
     ctx.fillStyle = '#7a3fa0';
-    ctx.fillRect(tx, y + 32, 360, 5);
+    ctx.fillRect(tx, ty + th * 0.68, len, 5);
     ctx.fillStyle = '#ffeaa7';
-    for (let k = 0; k < 9; k++) ctx.fillRect(tx + 12 + k * 39, y + 14, 26, 14);
+    for (let k = 0; k < 10; k++) ctx.fillRect(tx + 12 + k * 40, ty + th * 0.18, 26, th * 0.35);
     ctx.fillStyle = '#30343b';
-    for (let k = 0; k < 9; k++) {
+    for (let k = 0; k < 10; k++) {
       // つり革につかまる乗客
       ctx.beginPath();
-      ctx.arc(tx + 25 + k * 39, y + 22, 4, 0, Math.PI * 2);
+      ctx.arc(tx + 25 + k * 40, ty + th * 0.35, 4, 0, Math.PI * 2);
       ctx.fill();
+    }
+    // 風を切る線
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    for (let k = 0; k < 4; k++) {
+      const ly = ty + 6 + k * (th / 4);
+      ctx.beginPath();
+      ctx.moveTo(tx - 20 - k * 14, ly);
+      ctx.lineTo(tx - 70 - k * 14, ly);
+      ctx.stroke();
+    }
+  }
+
+  function drawGeyser(h, st, top, bottom) {
+    const height = bottom - top;
+    ctx.fillStyle = 'rgba(150, 215, 230, 0.35)';
+    ctx.fillRect(0, top, VW, height);
+    if (st.phase === 'idle') return;
+    if (st.phase === 'warn') {
+      // ぶくぶく
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      for (let k = 0; k < 24; k++) {
+        const ph = (now * 1.5 + hash(k, 5)) % 1;
+        const bx = hash(k, 9) * VW + Math.sin(now * 5 + k) * 4;
+        ctx.beginPath();
+        ctx.arc(bx, bottom - ph * height, 2 + hash(k, 3) * 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawGeyserBlast(h, st, top, bottom) {
+    if (st.phase !== 'active') return;
+    const height = bottom - top;
+    // 噴き上がる
+    const t = 1 - st.timer / h.active;
+    ctx.fillStyle = `rgba(235, 250, 255, ${0.85 - t * 0.4})`;
+    ctx.fillRect(0, top, VW, height);
+    ctx.strokeStyle = 'rgba(120, 190, 220, 0.8)';
+    ctx.lineWidth = 3;
+    for (let k = 0; k < Math.ceil(VW / 26); k++) {
+      const off = ((now * 400 + hash(k, 1) * height) % height);
+      ctx.beginPath();
+      ctx.moveTo(k * 26 + 8, bottom - off);
+      ctx.lineTo(k * 26 + 8, bottom - off - 18);
+      ctx.stroke();
     }
   }
 
@@ -337,12 +417,27 @@
     }
   }
 
-  /** 掘った穴。 */
-  function drawShaft(cardX, x, facing) {
-    const bottom = cardWorldY(x) + 18;
-    if (bottom <= 4) return;
+  /** 掘った穴。床を掘りきる前は、床のひび。 */
+  function drawShaft(cardX, m, facing) {
     const left = facing > 0 ? cardX - 68 : cardX - 10;
     const sTop = toScreenY(0);
+    if (m.floorHp > 0) {
+      if (m.floorHp >= 1) return;
+      // ひび（掘るほど広がる）
+      const k = 1 - m.floorHp;
+      const cx = facing > 0 ? cardX + 6 : cardX - 6;
+      ctx.strokeStyle = '#4a463d';
+      ctx.lineWidth = 2;
+      for (let n = 0; n < 5; n++) {
+        const ang = Math.PI * (0.15 + n * 0.17);
+        ctx.beginPath();
+        ctx.moveTo(cx, sTop + 1);
+        ctx.lineTo(cx + Math.cos(ang) * 34 * k * (n % 2 ? 1 : -1), sTop + 2 + Math.sin(ang) * 22 * k);
+        ctx.stroke();
+      }
+      return;
+    }
+    const bottom = cardWorldY(m.x) + 18;
     const sBottom = toScreenY(bottom);
     ctx.fillStyle = 'rgba(12, 8, 6, 0.55)';
     ctx.fillRect(left, sTop, 78, sBottom - sTop);
@@ -430,7 +525,7 @@
     return Object.assign({ theta, S: mix(a.S, b.S, t), P: mix(a.P, b.P, t), K: mix(a.K, b.K, t), F: mix(a.F, b.F, t), Hd: mix(a.Hd, b.Hd, t) }, vec(theta));
   }
 
-  function drawPerson(who, cardX, x, facing, stamina) {
+  function drawPerson(who, cardX, x, facing, stamina, stun) {
     const look = LOOKS[who];
     const cy = toScreenY(cardWorldY(x));
     const { theta, S, P, K, F, Hd, up, fwd } = poseAt(x);
@@ -520,6 +615,19 @@
     ctx.moveTo(mx - fwd.x * 2.5, my - fwd.y * 2.5);
     ctx.lineTo(mx + fwd.x * 1.5, my + fwd.y * 1.5);
     ctx.stroke();
+
+    // 気絶（じゃまものに当たった）
+    if (stun > 0) {
+      ctx.save();
+      ctx.translate(Hd.x - fwd.x * 20, Hd.y - fwd.y * 20);
+      ctx.scale(facing, 1); // 文字が裏返らないように戻す
+      ctx.rotate(now * 6);
+      ctx.font = '20px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('💫', 0, 0);
+      ctx.restore();
+    }
 
     // 汗（腰が限界に近いとき）
     if (stamina < 0.3) {
@@ -701,10 +809,12 @@
     const cx = VW / 2;
     const pX = cx - HAND_GAP;
     const oX = cx + HAND_GAP;
-    drawShaft(pX, game.player.x, 1);
-    drawShaft(oX, game.opp.x, -1);
-    drawPerson('opp', oX, game.opp.x, -1, game.opp.stamina);
-    drawPerson('player', pX, game.player.x, 1, game.player.stamina);
+    drawHazards(false);
+    drawShaft(pX, game.player, 1);
+    drawShaft(oX, game.opp, -1);
+    drawPerson('opp', oX, game.opp.x, -1, game.opp.stamina, game.opp.stun);
+    drawPerson('player', pX, game.player.x, 1, game.player.stamina, game.player.stun);
+    drawHazards(true);
     // 低いほうの名刺を手前に
     if (game.player.x >= game.opp.x) {
       drawCard('opp', oX, game.opp.x, -1);
@@ -726,13 +836,16 @@
   let lastLayerText = '';
   function updateHud() {
     const p = game.player;
-    const dText = G.formatDepth(p.x);
+    const digging = p.x >= SURFACE && p.floorHp > 0;
+    const dText = digging ? '床から 0 cm' : G.formatDepth(p.x);
     if (dText !== lastDepthText) {
       depthEl.textContent = dText;
       lastDepthText = dText;
     }
     const layer = LAYERS[G.layerIndexAt(p.x)];
-    const lText = `${layer.emoji} ${layer.name}`;
+    const lText = digging
+      ? `⛏️ 床を掘っています ${Math.round((1 - p.floorHp) * 100)}%`
+      : p.x < SURFACE ? `🙇 ${SURFACE_STAGES[G.stageIndexAt(p.x)].name}` : `${layer.emoji} ${layer.name}`;
     if (lText !== lastLayerText) {
       layerEl.textContent = lText;
       lastLayerText = lText;
@@ -755,22 +868,52 @@
   const PLAYER_LINES = ['いえいえ！', 'こちらこそ！', 'わたくしなど！', 'めっそうもない！', 'いえいえいえ！'];
   const OPP_LINES = ['いえいえ、わたくしなど', 'とんでもございません', 'こちらこそ', 'いえいえいえ', 'どうかお納めを'];
 
+  const NAMES = { player: 'あなた', opp: '部長' };
+  const HIT_LINES = { player: 'いったぁ……', opp: 'し、失礼しました……' };
+
+  /** じゃまものが、どちらかの近くにあるか（遠くの予告は出さない）。 */
+  function hazardNear(h) {
+    return [game.player.x, game.opp.x].some((x) => x > h.from - 22 && x < h.to + 4);
+  }
+
   function handleEvents(events) {
     const cx = VW / 2;
     for (const e of events) {
       if (e.type === 'overtake' && now - lastBubbleAt.player > 1.2) say('player', pick(PLAYER_LINES), 1.2);
       if (e.type === 'overtaken' && now - lastBubbleAt.opp > 1.2) say('opp', pick(OPP_LINES), 1.4);
       if (e.type === 'oppTired') say('opp', 'ハァ…ハァ…', 1.4);
+      if (e.type === 'stage') {
+        const stage = SURFACE_STAGES[e.index];
+        if (e.who === 'player') {
+          toast(`🙇 ${stage.name}`);
+          if (e.first && stage.line) say('opp', stage.line, 2);
+        } else if (e.first) {
+          toast(`🙇 部長が${stage.name}`);
+          say('player', 'い、いえいえ！', 1.4);
+        }
+      }
+      if (e.type === 'floorBreak') {
+        toast(`💥 ${NAMES[e.who]}が床をぶち抜いた！`);
+        shake = 0.8;
+        burst(e.who === 'player' ? cx - 40 : cx + 40, 4, 34, '#8d8778');
+        if (e.who === 'opp') say('opp', '床、抜けましたね', 1.8);
+      }
       if (e.type === 'layer') {
         const layer = LAYERS[e.index];
-        if (e.index === 1) {
-          toast('💥 床をぶち抜いた！');
-          shake = 0.8;
-          burst(e.by === 'player' ? cx - 40 : cx + 40, 4, 34, '#8d8778');
-        } else {
-          toast(`${layer.emoji} ${layer.name}に到達`);
-        }
+        if (e.index > 1) toast(`${layer.emoji} ${layer.name}に到達`);
         if (layer.line) say('opp', layer.line, 2.2);
+      }
+      if (e.type === 'hazardWarn') {
+        const h = HAZARDS.find((z) => z.id === e.id);
+        if (hazardNear(h)) toast(h.id === 'train' ? '⚠️ 電車がきます！' : '⚠️ 間欠泉が噴き出しそう！');
+      }
+      if (e.type === 'hit') {
+        const h = HAZARDS.find((z) => z.id === e.id);
+        const verb = h.id === 'train' ? 'ひかれた' : '吹き飛ばされた';
+        toast(`${h.emoji} ${NAMES[e.who]}が${h.name}に${verb}！`);
+        say(e.who, HIT_LINES[e.who], 1.8);
+        shake = Math.max(shake, 0.6);
+        burst(e.who === 'player' ? cx - 30 : cx + 30, cardWorldY(e.who === 'player' ? game.player.x : game.opp.x), 16, '#fff');
       }
       if (e.type === 'over') startEnding(e.result);
     }
@@ -890,6 +1033,13 @@
       if (game.player.x > SURFACE && game.player.x > before && Math.random() < 0.5) {
         const layer = LAYERS[G.layerIndexAt(game.player.x)];
         burst(VW / 2 - HAND_GAP + 8, cardWorldY(game.player.x) + 12, 1, LAYER_LOOK[layer.id].dot);
+      }
+      // 床を掘っているとき
+      for (const [m, side] of [[game.player, -1], [game.opp, 1]]) {
+        if (m.x === SURFACE && m.floorHp > 0 && m.floorHp < 1 && m.v > 0) {
+          shake = Math.max(shake, 0.15);
+          if (Math.random() < 0.4) burst(VW / 2 + side * (HAND_GAP - 6), 0, 1, '#8d8778');
+        }
       }
       updateHud();
     }

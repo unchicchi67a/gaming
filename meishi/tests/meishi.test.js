@@ -71,6 +71,7 @@ test('押しっぱなしだと、ぎっくり腰で負け', () => {
 });
 
 test('腰と相談しながら押せば、たいてい勝てる（バランスの確認）', () => {
+  // 部長が強すぎるという声があったので、ふつうに押せばほぼ勝てるようにしている
   let wins = 0;
   const n = 60;
   for (let seed = 1; seed <= n; seed++) {
@@ -81,8 +82,88 @@ test('腰と相談しながら押せば、たいてい勝てる（バランス�
       assert.ok(g.player.x >= G.GOAL);
     }
   }
-  // 簡単すぎず、勝てないほど難しくもない
-  assert.ok(wins >= n * 0.4 && wins <= n * 0.95, `勝った回数 ${wins} / ${n}`);
+  assert.ok(wins >= n * 0.85, `勝った回数 ${wins} / ${n}`);
+});
+
+test('腰を使い切らない雑な押し方だと、ときどき部長に負ける（簡単すぎない）', () => {
+  const casual = (g, st) => {
+    if (st.holding && g.player.stamina < 0.4) st.holding = false;
+    else if (!st.holding && g.player.stamina > 0.9) st.holding = true;
+    return st.holding;
+  };
+  let wins = 0;
+  const n = 120;
+  for (let seed = 1; seed <= n; seed++) if (play(casual, seed).result === 'win') wins++;
+  assert.ok(wins >= n * 0.6 && wins < n, `勝った回数 ${wins} / ${n}`);
+});
+
+test('床より上では、段階を順に進み、そのたびにできごとが起きる', () => {
+  const g = G.createGame({ rng: G.makeRng(1) });
+  const stages = [];
+  const st = { holding: false };
+  while (g.player.x < G.SURFACE && g.state === 'playing') {
+    for (const e of G.step(g, 1 / 60, rhythmBot(g, st))) {
+      if (e.type === 'stage' && e.who === 'player') stages.push(e.index);
+    }
+  }
+  assert.deepEqual(stages, [1, 2, 3, 4, 5, 6]);
+  assert.equal(G.SURFACE_STAGES[G.stageIndexAt(G.SURFACE)].name, '床にはりつく');
+});
+
+test('床は、floorTime 秒押しつづけないと掘りきれない', () => {
+  const g = G.createGame({ rng: G.makeRng(1) });
+  g.player.x = G.SURFACE;
+  g.player.stamina = 1;
+  let broke = null;
+  for (let i = 0; i < 600 && broke === null; i++) {
+    if (G.step(g, 1 / 60, true).some((e) => e.type === 'floorBreak' && e.who === 'player')) broke = g.time;
+  }
+  assert.ok(Math.abs(broke - G.TUNING.floorTime) < 0.05, `掘りきった時間 ${broke}`);
+  assert.equal(g.player.floorHp, 0);
+  // 掘りきるまでは床の高さのまま
+  const h = G.createGame({ rng: G.makeRng(1) });
+  h.player.x = G.SURFACE;
+  G.step(h, 0.25, true);
+  assert.equal(h.player.x, G.SURFACE);
+  // 掘りきったあとは下に進める
+  G.step(g, 0.2, true);
+  assert.ok(g.player.x > G.SURFACE);
+});
+
+test('電車には自分も部長も当たり、気絶して押し戻される', () => {
+  const g = G.createGame({ rng: G.makeRng(1) });
+  const train = G.HAZARDS.findIndex((h) => h.id === 'train');
+  const h = G.HAZARDS[train];
+  for (const m of [g.player, g.opp]) {
+    m.floorHp = 0;
+    m.x = (h.from + h.to) / 2;
+  }
+  g.opp.mode = 'rest';
+  g.opp.react = 99; // 部長が動かないように
+  g.hazards[train].phase = 'warn';
+  g.hazards[train].timer = 0.001;
+  const events = G.step(g, 1 / 60, false);
+  const hits = events.filter((e) => e.type === 'hit').map((e) => e.who).sort();
+  assert.deepEqual(hits, ['opp', 'player']);
+  assert.ok(g.player.x < h.from && g.opp.x < h.from);
+  assert.ok(g.player.stun > 0);
+  // 気絶しているあいだは、押しても下がらない
+  const x = g.player.x;
+  G.step(g, 0.25, true);
+  assert.equal(g.player.x, x);
+  // 同じ電車には 2 回当たらない
+  g.player.stun = 0;
+  g.player.x = (h.from + h.to) / 2;
+  assert.ok(!G.step(g, 1 / 60, false).some((e) => e.type === 'hit' && e.who === 'player'));
+});
+
+test('じゃまものの区間は、それぞれの地層の中にある', () => {
+  const layerOf = { train: 'subway', geyser: 'onsen' };
+  for (const h of G.HAZARDS) {
+    assert.ok(h.from < h.to);
+    assert.equal(G.LAYERS[G.layerIndexAt(h.from)].id, layerOf[h.id]);
+    assert.equal(G.LAYERS[G.layerIndexAt(h.to)].id, layerOf[h.id]);
+  }
 });
 
 test('「お先にどうぞ」と言ったら負け。終わったあとは動かない', () => {
@@ -99,6 +180,8 @@ test('「お先にどうぞ」と言ったら負け。終わったあとは動�
 
 test('部長に先に地球の中心に着かれたら負け', () => {
   const g = G.createGame({ rng: G.makeRng(1) });
+  g.opp.floorHp = 0;
+  g.player.floorHp = 0;
   g.opp.x = G.GOAL - 0.01;
   g.opp.v = 5;
   g.player.x = G.GOAL - 5; // 自分のほうが高いので失礼度もたまるが、先に部長が着く
@@ -119,12 +202,25 @@ test('追い抜き・地層のできごとが起きる', () => {
     }
   }
   assert.ok(types.has('overtake'));
-  assert.ok(types.has('overtaken'));
+  assert.ok(types.has('stage'));
+  assert.ok(types.has('floorBreak'));
   assert.ok(types.has('over'));
   // 地層は 1 から順に 1 回ずつ
   assert.deepEqual(layers, layers.slice().sort((a, b) => a - b));
   assert.equal(new Set(layers).size, layers.length);
   assert.equal(layers[0], 1);
+});
+
+test('部長に抜かれることもある', () => {
+  let overtaken = 0;
+  for (let seed = 1; seed <= 20; seed++) {
+    const g = G.createGame({ rng: G.makeRng(seed) });
+    const st = { holding: false };
+    while (g.state === 'playing') {
+      if (G.step(g, 1 / 60, rhythmBot(g, st)).some((e) => e.type === 'overtaken')) overtaken++;
+    }
+  }
+  assert.ok(overtaken > 0);
 });
 
 test('長い dt を渡しても、一度に進むのは 0.25 秒まで', () => {
@@ -134,8 +230,8 @@ test('長い dt を渡しても、一度に進むのは 0.25 秒まで', () => {
 });
 
 test('称号', () => {
-  assert.equal(G.rankFor(30), '名刺交換の神');
-  assert.equal(G.rankFor(40), '伝説の営業');
-  assert.equal(G.rankFor(50), 'できる社会人');
+  assert.equal(G.rankFor(40), '名刺交換の神');
+  assert.equal(G.rankFor(47), '伝説の営業');
+  assert.equal(G.rankFor(55), 'できる社会人');
   assert.equal(G.rankFor(90), '期待の新人');
 });
