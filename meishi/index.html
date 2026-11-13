@@ -26,17 +26,18 @@
           <div class="layer" id="layer">🏢 オフィス</div>
         </div>
         <div class="gauges">
-          <div class="gauge gauge-rude">
-            <span class="gauge-label">失礼度</span>
-            <span class="gauge-bar"><span class="gauge-fill" id="rude-fill"></span></span>
+          <div class="gauge gauge-ma" id="ma-gauge">
+            <span class="gauge-label">間</span>
+            <span class="gauge-bar"><span class="gauge-fill" id="ma-fill"></span></span>
           </div>
+          <div class="ma-note" id="ma-note" aria-live="polite"></div>
           <div class="gauge gauge-back">
             <span class="gauge-label">あなたの腰</span>
             <span class="gauge-bar"><span class="gauge-fill" id="back-fill"></span></span>
           </div>
-          <div class="gauge gauge-opp">
-            <span class="gauge-label">部長の腰</span>
-            <span class="gauge-bar"><span class="gauge-fill" id="opp-fill"></span></span>
+          <div class="gauge gauge-face">
+            <span class="gauge-label">部長のようす</span>
+            <span class="face" id="opp-face">😌 余裕</span>
           </div>
         </div>
       </div>
@@ -55,13 +56,15 @@
         <h1 class="logo">名刺交換<br><span class="logo-big">低さバトル</span></h1>
         <ul class="rules">
           <li>名刺は<strong>相手より低く</strong>差し出すのがマナー</li>
-          <li>取引先の部長も<strong>負けじと下げてくる</strong></li>
-          <li>先に<strong>地球の中心</strong>に着いたら勝ち</li>
+          <li>2人とも止まると<strong>「間」</strong>ができ、間が満ちたら名刺交換。<strong>そのとき低いほうの勝ち</strong></li>
+          <li><strong>部長の腰は見えない</strong>。顔色から読め（ただし部長はやせがまんも、疲れたふりもする）</li>
         </ul>
         <ul class="rules rules-sub">
-          <li>押しているあいだ名刺が下がる（スペースキーでもOK）</li>
-          <li>部長より高いと<strong>失礼度</strong>がたまる</li>
-          <li>押しっぱなしだと<strong>腰</strong>が限界に</li>
+          <li>押しているあいだ名刺が下がる（スペースキーでもOK）。止まると腰が少しずつ回復</li>
+          <li><strong>押しつづけるほど腰にくる</strong>。ちょっとずつ抜くか、ドカンと突き放すか</li>
+          <li>部長に抜かれたら返さないと負け。部長が名刺を差し出すタイミングは毎回ちがう</li>
+          <li>部長も<strong>あなたの汗を見ている</strong>。腰が減っていると、一気に突き放してくる</li>
+          <li>新しい地層に<strong>一番乗り</strong>すると腰が少し回復。地球の中心に着いたら即勝ち</li>
           <li><strong>電車</strong>や<strong>間欠泉</strong>に当たると押し戻される（部長も）</li>
           <li>「お先にどうぞ」と言ったら負け</li>
         </ul>

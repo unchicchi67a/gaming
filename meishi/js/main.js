@@ -31,10 +31,11 @@
   const hud = $('hud');
   const depthEl = $('depth');
   const layerEl = $('layer');
-  const rudeFill = $('rude-fill');
+  const maFill = $('ma-fill');
+  const maGauge = $('ma-gauge');
+  const maNote = $('ma-note');
   const backFill = $('back-fill');
-  const oppFill = $('opp-fill');
-  const rudeGauge = rudeFill.closest('.gauge');
+  const oppFace = $('opp-face');
   const holdBtn = $('hold');
   const toastEl = $('toast');
   const titleScreen = $('title-screen');
@@ -812,7 +813,8 @@
     drawHazards(false);
     drawShaft(pX, game.player, 1);
     drawShaft(oX, game.opp, -1);
-    drawPerson('opp', oX, game.opp.x, -1, game.opp.stamina, game.opp.stun);
+    // 部長の腰は見えないので、汗は「見せている顔」で描く（やせがまんや疲れたふりもそのまま見える）
+    drawPerson('opp', oX, game.opp.x, -1, FACE_SWEAT[game.opp.face], game.opp.stun);
     drawPerson('player', pX, game.player.x, 1, game.player.stamina, game.player.stun);
     drawHazards(true);
     // 低いほうの名刺を手前に
@@ -850,13 +852,30 @@
       layerEl.textContent = lText;
       lastLayerText = lText;
     }
-    rudeFill.style.width = `${game.rude * 100}%`;
-    rudeGauge.classList.toggle('is-danger', game.rude > 0.7);
+    // 間：部長が低いときは、いつ満ちるか（部長が差し出すか）わからないので、いちばん長い場合を基準に描く
+    const lower = game.maLower || 'even';
+    const full = lower === 'opp' ? game.tuning.oppPatience[1] : game.maLimit || game.tuning.maPlayer;
+    maFill.style.width = `${clamp(game.ma / full, 0, 1) * 100}%`;
+    for (const k of ['player', 'opp', 'even']) maGauge.classList.toggle(`is-${k}`, lower === k);
+    maGauge.classList.toggle('is-danger', lower === 'opp' && game.reached);
+    const note = game.ma <= 0 ? '' : MA_NOTES[lower === 'opp' && game.reached ? 'reach' : lower];
+    if (maNote.textContent !== note) maNote.textContent = note;
+    maNote.className = `ma-note is-${lower}`;
     backFill.style.width = `${p.stamina * 100}%`;
     backFill.classList.toggle('is-low', p.stamina < 0.3);
-    oppFill.style.width = `${game.opp.stamina * 100}%`;
-    oppFill.classList.toggle('is-low', game.opp.stamina < 0.3);
+    const face = FACES[game.opp.face];
+    if (oppFace.textContent !== face) oppFace.textContent = face;
   }
+
+  const MA_NOTES = {
+    player: 'このまま間が満ちれば勝ち',
+    opp: '部長がいつ名刺を出すか…',
+    reach: '部長が名刺を差し出しかけた！',
+    even: 'お見合い中…',
+  };
+  const FACES = { calm: '😌 余裕', sweat: '😅 汗', tired: '😩 ハァハァ' };
+  /** 部長の顔ごとの、描く汗の量（drawPerson の stamina として渡す）。 */
+  const FACE_SWEAT = { calm: 1, sweat: 0.25, tired: 0.1 };
 
   function toast(text) {
     toastEl.textContent = text;
@@ -869,6 +888,11 @@
   const OPP_LINES = ['いえいえ、わたくしなど', 'とんでもございません', 'こちらこそ', 'いえいえいえ', 'どうかお納めを'];
 
   const NAMES = { player: 'あなた', opp: '部長' };
+  const FACE_LINES = {
+    calm: ['（にこにこ）', 'まだまだ', '（涼しい顔）'],
+    sweat: ['（汗をふく）', 'ふう……', 'なかなか……'],
+    tired: ['ハァ…ハァ…', 'こ、腰が……', 'もう……'],
+  };
   const HIT_LINES = { player: 'いったぁ……', opp: 'し、失礼しました……' };
 
   /** じゃまものが、どちらかの近くにあるか（遠くの予告は出さない）。 */
@@ -881,7 +905,16 @@
     for (const e of events) {
       if (e.type === 'overtake' && now - lastBubbleAt.player > 1.2) say('player', pick(PLAYER_LINES), 1.2);
       if (e.type === 'overtaken' && now - lastBubbleAt.opp > 1.2) say('opp', pick(OPP_LINES), 1.4);
-      if (e.type === 'oppTired') say('opp', 'ハァ…ハァ…', 1.4);
+      if (e.type === 'oppAnswer' && e.big) {
+        toast('⚡ 部長が大きく下げてきた！');
+        say('opp', 'いえいえいえいえ！', 1.4);
+      }
+      // 下げおわった部長が見せる顔（うそのこともある）
+      if (e.type === 'oppDone') say('opp', pick(FACE_LINES[game.opp.face]), 1.6);
+      if (e.type === 'oppReach') {
+        say('opp', 'では、改めまして……', 1.6);
+        toast('⚠️ 部長が名刺を差し出しかけた！');
+      }
       if (e.type === 'stage') {
         const stage = SURFACE_STAGES[e.index];
         if (e.who === 'player') {
@@ -900,7 +933,8 @@
       }
       if (e.type === 'layer') {
         const layer = LAYERS[e.index];
-        if (e.index > 1) toast(`${layer.emoji} ${layer.name}に到達`);
+        const heal = e.bonus > 0.005 ? `（${NAMES[e.by]}の腰が回復）` : '';
+        if (e.index > 1) toast(`${layer.emoji} ${layer.name}に一番乗り${heal}`);
         if (layer.line) say('opp', layer.line, 2.2);
       }
       if (e.type === 'hazardWarn') {
@@ -939,7 +973,10 @@
 
   const ENDING_LINES = {
     win: ['opp', '……参りました。お先にどうぞ'],
-    rude: ['opp', '（この人、失礼だな……）'],
+    center: ['opp', '中心より下はございません……参りました'],
+    oppBack: ['opp', 'こ、腰が……！'],
+    draw: ['opp', 'あっ'],
+    rude: ['opp', 'では、改めまして。わたくし、こういう者です'],
     back: ['player', 'こ、腰が……！'],
     beaten: ['opp', '中心より下はございませんので'],
     surrender: ['player', 'お先にどうぞ……'],
@@ -955,13 +992,18 @@
     holdBtn.classList.remove('is-down');
     const [who, line] = ENDING_LINES[result];
     say(who, line, 3);
-    if (result === 'win') {
+    if (result === 'win') toast('🤝 名刺交換成立');
+    if (result === 'center') {
       toast('🔥 名刺が 6,000℃ で燃えた');
       burst(VW / 2, cardWorldY(GOAL), 40, '#fff3b0');
     }
-    if (result === 'back') {
-      toast('💥 グキッ');
+    if (result === 'back' || result === 'oppBack') {
+      toast(result === 'back' ? '💥 グキッ' : '💥 部長の腰がグキッ');
       shake = 0.6;
+    }
+    if (result === 'draw') {
+      toast('💥 名刺どうしが正面衝突');
+      say('player', 'あっ', 2);
     }
     if (result === 'surrender') setTimeout(() => say('opp', 'では', 2), 600);
   }
@@ -969,12 +1011,25 @@
   const RESULTS = {
     win: {
       kicker: 'ご契約成立',
+      text: '間が満ちたとき、あなたの名刺が下でした。部長は下げ返すのを諦め、先に名刺を受け取ってくれました。',
+    },
+    center: {
+      kicker: 'ご契約成立',
       text: '地球の中心で、ついに部長が「お先にどうぞ」と言いました。名刺は 6,000℃ で燃えつきましたが、商談はまとまりました。',
+    },
+    oppBack: {
+      kicker: 'ご契約成立（労災）',
+      text: '張りあいすぎた部長の腰が、先に限界をむかえました。商談は、お見舞いのあとでまとまりました。',
+    },
+    draw: {
+      kicker: '引き分け',
+      title: 'お見合い',
+      text: '同じ高さのまま間ができてしまい、名刺どうしが正面からぶつかりました。',
     },
     rude: {
       kicker: '商談失敗',
-      title: '失礼な人だと思われた',
-      text: '部長より高い位置で、名刺を出しつづけてしまいました。',
+      title: '部長に先を越された',
+      text: '間が満ちたとき、部長の名刺のほうが低い位置にありました。部長は満足そうに名刺を差し出しました。',
     },
     back: {
       kicker: '労災',
@@ -998,14 +1053,21 @@
     hud.hidden = true;
     const r = RESULTS[game.result];
     $('result-kicker').textContent = r.kicker;
-    $('result-title').textContent = game.result === 'win' ? `称号：${G.rankFor(game.time)}` : r.title;
+    const won = ['win', 'center', 'oppBack'].includes(game.result);
+    const where = game.exchangeX != null ? game.exchangeX : Math.max(game.player.x, game.opp.x);
+    $('result-title').textContent = won ? `称号：${G.rankFor(where)}` : r.title;
     $('result-text').textContent = r.text;
     const stats = $('result-stats');
     stats.textContent = '';
+    // 部長の腰の種明かし（読みが当たっていたかの答え合わせ）
+    const o = game.opp;
+    const strength = o.max >= 1.15 ? 'タフ' : o.max <= 0.85 ? 'ひ弱' : 'ふつう';
     const rows = [
-      ['とどいた深さ', G.formatDepth(game.player.x)],
+      [game.exchangeX != null ? '名刺交換した場所' : '決着した場所', G.formatDepth(where)],
       ['かかった時間', `${game.time.toFixed(1)} 秒`],
-      ['部長より低かった時間', `${game.lowerTime.toFixed(1)} 秒`],
+      ['部長が下げ返した回数', `${game.stats.answers} 回`],
+      ['部長の腰（種明かし）', `残り ${Math.round(o.stamina * 100)}%（今回の部長は${strength}：最大 ${Math.round(o.max * 100)}%）`],
+      ['あなたの腰', `残り ${Math.round(game.player.stamina * 100)}%`],
     ];
     for (const [k, v] of rows) {
       const dt = document.createElement('dt');
@@ -1017,6 +1079,9 @@
     resultScreen.hidden = false;
     $('retry').focus({ preventScroll: true });
   }
+
+  // 動作確認用：?debug をつけて開くと、外からゲームの状態を読める（自動操作のテストに使う）
+  if (/[?&]debug\b/.test(location.search)) window.__game = () => game;
 
   // ---------- ループ ----------
   let lastT = performance.now();

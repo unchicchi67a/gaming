@@ -153,7 +153,7 @@ html, body {
 }
 .gauge {
   display: grid;
-  grid-template-columns: 5.2em 1fr;
+  grid-template-columns: 6.2em 1fr;
   align-items: center;
   gap: 8px;
   font-size: 0.78rem;
@@ -173,11 +173,17 @@ html, body {
   border-radius: 5px;
   background: var(--leaf);
 }
-.gauge-rude .gauge-fill { background: var(--vermilion); }
-.gauge-rude.is-danger .gauge-bar { animation: blink 0.4s steps(2) infinite; }
-.gauge-back .gauge-fill.is-low,
-.gauge-opp .gauge-fill.is-low { background: var(--warn); }
-.gauge-opp { opacity: 0.8; }
+/* 間：あなたが低いと青（このままなら勝ち）、部長が低いと赤（部長が差し出しそう）、同じ高さは灰色 */
+.gauge-ma .gauge-fill { background: var(--bar-off); transition: background 0.2s; }
+.gauge-ma.is-player .gauge-fill { background: #3d7be0; }
+.gauge-ma.is-opp .gauge-fill { background: var(--vermilion); }
+.gauge-ma.is-even .gauge-fill { background: #9a9a9a; }
+.gauge-ma.is-danger .gauge-bar { animation: blink 0.4s steps(2) infinite; }
+.ma-note { min-height: 1.2em; font-size: 0.72rem; font-weight: 700; text-align: right; line-height: 1.2; }
+.ma-note.is-player { color: #9cc2ff; }
+.ma-note.is-opp { color: #ff9a8a; }
+.gauge-back .gauge-fill.is-low { background: var(--warn); }
+.face { font-weight: 800; font-size: 0.85rem; white-space: nowrap; }
 
 @keyframes blink { 50% { background: rgba(226, 65, 47, 0.6); } }
 
@@ -307,7 +313,7 @@ html, body {
 /* 縦長・小さい画面 */
 @media (max-width: 560px) {
   .gauges { min-width: 150px; }
-  .gauge { grid-template-columns: 4.6em 1fr; font-size: 0.7rem; }
+  .gauge { grid-template-columns: 5.8em 1fr; font-size: 0.7rem; }
   .layer { font-size: 0.78rem; }
 }
 @media (max-height: 420px) {
@@ -321,5 +327,5 @@ html, body {
 
 @media (prefers-reduced-motion: reduce) {
   .toast, .btn { transition: none; }
-  .gauge-rude.is-danger .gauge-bar { animation: none; }
+  .gauge-ma.is-danger .gauge-bar { animation: none; }
 }
