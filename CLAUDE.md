@@ -17,6 +17,13 @@
   - 画面では「はさむ →（爆裂ありなら）爆発 →（爆裂連鎖ありなら）爆裂連鎖」の段階に分けて見せる。爆裂連鎖のときに文字（トースト）は出さない（見づらくなるため。ユーザーの希望）。アニメーション中は次の手を受け付けない
   - 設定の保存先は `reversi.settings.v2`
   - テスト：`node --test reversi/tests/reversi.test.js reversi/tests/blast.test.js`
+- `meishi/`：名刺交換 低さバトル（ビルド不要の HTML / CSS / JavaScript。`IDEAS.md` の 1 つ目のアイデア）
+  - 名刺を相手（取引先の部長）より低く差し出し合い、床をぶち抜いて地球の中心まで下げる。押しているあいだ下がり、腰ゲージが減る。部長より高いと失礼度がたまる
+  - ルールと部長の動きは `js/game.js`（描画なし。ブラウザと Node.js の両方から読み込める）、canvas の描画と操作は `js/main.js`
+  - 位置は「下げた量」x（0 = 胸の高さ、`SURFACE` = 床、`GOAL` = 地球の中心）。画面のスクロール量は x に比例し、表示する深さは `depthAt(x)`（地層ごとの対応点のあいだを対数で補間）
+  - 難しさは `TUNING` で調整する。変えたらテストのバランス確認（腰ゲージを見て押すボットの勝率）も通ること
+  - テスト：`node --test meishi/tests/meishi.test.js`
+- `IDEAS.md`：これから作るゲームのアイデアメモ（日常や仕事のありふれた光景を題材にしたクソゲー）
 - 絵の生成：ユーザー単位の Claude Code スキル `imagegen`（`~/.claude/skills/imagegen/`。Modal の GPU で Stable Diffusion XL を動かす）を使う。このリポジトリには入れていない
   - 使い方と進め方（試作を見せてユーザーに選んでもらってから組み込む）はスキルの `SKILL.md` に従う
   - 切り抜く前の絵は `.imagegen-raw/` に残る（`.gitignore` 済み）

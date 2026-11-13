@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f3e66">
+  <meta name="description" content="名刺は相手より低く差し出すのがマナー。取引先の部長と、地球の中心まで名刺を下げ合うゲーム">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>名刺交換 低さバトル</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;800&family=Mochiy+Pop+One&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <canvas id="stage" aria-label="名刺交換のようす"></canvas>
+
+    <!-- プレイ中の表示 -->
+    <div class="hud" id="hud" hidden>
+      <div class="hud-top">
+        <div class="depth-box">
+          <div class="depth" id="depth">床から 120 cm</div>
+          <div class="layer" id="layer">🏢 オフィス</div>
+        </div>
+        <div class="gauges">
+          <div class="gauge gauge-rude">
+            <span class="gauge-label">失礼度</span>
+            <span class="gauge-bar"><span class="gauge-fill" id="rude-fill"></span></span>
+          </div>
+          <div class="gauge gauge-back">
+            <span class="gauge-label">あなたの腰</span>
+            <span class="gauge-bar"><span class="gauge-fill" id="back-fill"></span></span>
+          </div>
+          <div class="gauge gauge-opp">
+            <span class="gauge-label">部長の腰</span>
+            <span class="gauge-bar"><span class="gauge-fill" id="opp-fill"></span></span>
+          </div>
+        </div>
+      </div>
+      <div class="hud-bottom">
+        <button class="btn btn-small" id="surrender" type="button">お先にどうぞ</button>
+        <button class="btn btn-hold" id="hold" type="button">さげる<span class="hold-arrow" aria-hidden="true">⬇</span></button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" aria-live="polite"></div>
+
+    <!-- タイトル -->
+    <section class="overlay" id="title-screen">
+      <div class="panel">
+        <p class="kicker">ビジネスマナー実践ゲーム</p>
+        <h1 class="logo">名刺交換<br><span class="logo-big">低さバトル</span></h1>
+        <ul class="rules">
+          <li>名刺は<strong>相手より低く</strong>差し出すのがマナー</li>
+          <li>取引先の部長も<strong>負けじと下げてくる</strong></li>
+          <li>先に<strong>地球の中心</strong>に着いたら勝ち</li>
+        </ul>
+        <ul class="rules rules-sub">
+          <li>押しているあいだ名刺が下がる（スペースキーでもOK）</li>
+          <li>部長より高いと<strong>失礼度</strong>がたまる</li>
+          <li>押しっぱなしだと<strong>腰</strong>が限界に</li>
+          <li>「お先にどうぞ」と言ったら負け</li>
+        </ul>
+        <button class="btn btn-main" id="start" type="button">名刺を出す</button>
+      </div>
+    </section>
+
+    <!-- 結果 -->
+    <section class="overlay" id="result-screen" hidden>
+      <div class="panel">
+        <p class="kicker" id="result-kicker"></p>
+        <h2 class="result-title" id="result-title"></h2>
+        <p class="result-text" id="result-text"></p>
+        <dl class="stats" id="result-stats"></dl>
+        <div class="result-buttons">
+          <button class="btn btn-main" id="retry" type="button">もう一度</button>
+          <a class="btn btn-small btn-link" href="../">ゲーム一覧</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/game.js"></script>
+  <script src="js/fullscreen.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
