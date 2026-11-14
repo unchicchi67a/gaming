@@ -459,10 +459,26 @@
   }
 
   // ---------- 描画：人 ----------
+  // hair：full（ふさふさ）・thin（うしろだけ残る）・side（横だけ残る）・slick（オールバック）
+  // extras：lanyard（首から下げた社員証）・glasses・mustache・pin（金のバッジ）
   const LOOKS = {
-    player: { suit: '#2b3a67', suitDark: '#1d2849', tie: '#3a8ee6', hair: '#1b1b1b', bald: false, width: 17 },
-    opp: { suit: '#5c5f66', suitDark: '#43464c', tie: '#d63a2f', hair: '#9a9a9a', bald: true, width: 21 },
+    player: { suit: '#2b3a67', suitDark: '#1d2849', tie: '#3a8ee6', hair: '#1b1b1b', hairStyle: 'full', width: 17 },
   };
+  // 相手は役職ごとに見た目を変える（偉いほど、恰幅がよく、服が黒く、髪が白く、飾りが増える）
+  const OPP_LOOKS = {
+    hira: { suit: '#55627d', suitDark: '#414c63', tie: '#e0a33a', hair: '#2a2420', hairStyle: 'full', width: 16, lanyard: true },
+    kakaricho: { suit: '#5a6270', suitDark: '#454b56', tie: '#3f8f5a', hair: '#1e1e1e', hairStyle: 'full', width: 18, glasses: true },
+    kacho: { suit: '#6b5a48', suitDark: '#524436', tie: '#2b4a8f', hair: '#4a4a4a', hairStyle: 'thin', width: 20, glasses: true },
+    bucho: { suit: '#5c5f66', suitDark: '#43464c', tie: '#d63a2f', hair: '#9a9a9a', hairStyle: 'side', width: 21, glasses: true },
+    kyokucho: { suit: '#3a3d47', suitDark: '#2a2c34', tie: '#7b3fa0', hair: '#c9c9c9', hairStyle: 'slick', width: 23, mustache: true },
+    shacho: { suit: '#1f2026', suitDark: '#141519', tie: '#d9a62a', hair: '#f2f2f2', hairStyle: 'slick', width: 25, mustache: true, glasses: true, pin: true },
+  };
+  /** 絵に使う相手の役職。タイトルでは選んでいる役職（背景の相手がすぐ変わる）、試合中は試合の役職。 */
+  function lookFor(who) {
+    if (who !== 'opp') return LOOKS[who];
+    const id = mode === 'title' ? rankId : game.rank.id;
+    return OPP_LOOKS[id] || OPP_LOOKS.bucho;
+  }
 
   /** 腕の向き（体の傾き θ に合わせて、前に出す → 頭の先に伸ばす）。 */
   function armVec(theta) {
@@ -529,7 +545,7 @@
   }
 
   function drawPerson(who, cardX, x, facing, stamina, stun) {
-    const look = LOOKS[who];
+    const look = lookFor(who);
     const cy = toScreenY(cardWorldY(x));
     const { theta, S, P, K, F, Hd, up, fwd } = poseAt(x);
 
@@ -577,6 +593,30 @@
     ctx.moveTo(nx, ny);
     ctx.lineTo(nx - up.x * 18, ny - up.y * 18);
     ctx.stroke();
+    // 首から下げた社員証（平社員）
+    if (look.lanyard) {
+      ctx.strokeStyle = '#2f8f6f';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(nx - fwd.x * 3 + up.x * 2, ny - fwd.y * 3 + up.y * 2);
+      ctx.lineTo(nx + fwd.x * 2 - up.x * 13, ny + fwd.y * 2 - up.y * 13);
+      ctx.stroke();
+      ctx.save();
+      ctx.translate(nx + fwd.x * 2.5 - up.x * 16, ny + fwd.y * 2.5 - up.y * 16);
+      ctx.rotate(theta);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-2.5, -3.5, 5, 7);
+      ctx.fillStyle = '#2f8f6f';
+      ctx.fillRect(-2.5, -3.5, 5, 2);
+      ctx.restore();
+    }
+    // 金のバッジ（社長）
+    if (look.pin) {
+      ctx.fillStyle = '#f2c94c';
+      ctx.beginPath();
+      ctx.arc(nx - fwd.x * 4 - up.x * 7, ny - fwd.y * 4 - up.y * 7, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // 頭
     ctx.fillStyle = '#f2c9a0';
@@ -585,10 +625,23 @@
     ctx.fill();
     // 髪
     ctx.fillStyle = look.hair;
-    if (look.bald) {
+    if (look.hairStyle === 'side') {
       // 横だけ残った髪
       ctx.beginPath();
       ctx.arc(Hd.x - fwd.x * 6, Hd.y - fwd.y * 6, 6, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (look.hairStyle === 'thin') {
+      // てっぺんが薄く、うしろだけ残った髪
+      ctx.beginPath();
+      ctx.arc(Hd.x + up.x * 2 - fwd.x * 2, Hd.y + up.y * 2 - fwd.y * 2, 10.5, theta - Math.PI * 1.05, theta - Math.PI * 0.4);
+      ctx.fill();
+    } else if (look.hairStyle === 'slick') {
+      // うしろになでつけたオールバック
+      ctx.beginPath();
+      ctx.arc(Hd.x + up.x * 2.5 - fwd.x * 2.5, Hd.y + up.y * 2.5 - fwd.y * 2.5, 11, theta - Math.PI * 1.1, theta + 0.02);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(Hd.x - fwd.x * 8 + up.x * 2, Hd.y - fwd.y * 8 + up.y * 2, 5, 0, Math.PI * 2);
       ctx.fill();
     } else {
       ctx.beginPath();
@@ -602,12 +655,31 @@
     ctx.beginPath();
     ctx.arc(ex, ey, 1.6, 0, Math.PI * 2);
     ctx.fill();
-    if (look.bald) {
-      // めがね
-      ctx.strokeStyle = '#333';
+    if (look.glasses) {
+      // レンズの中は肌色で塗る（前髪にかかっても、めがねと目が見えるように）
+      ctx.fillStyle = '#f2c9a0';
+      ctx.beginPath();
+      ctx.arc(ex, ey, 3.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(ex, ey, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = look.pin ? '#c9a227' : '#333'; // 社長は金ぶち
       ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.arc(ex, ey, 3.6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (look.mustache) {
+      // 口ひげ
+      ctx.strokeStyle = look.hair;
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      const hx = Hd.x + fwd.x * 7 - up.x * 2.6;
+      const hy = Hd.y + fwd.y * 7 - up.y * 2.6;
+      ctx.moveTo(hx - fwd.x * 4, hy - fwd.y * 4);
+      ctx.lineTo(hx + fwd.x * 3, hy + fwd.y * 3);
       ctx.stroke();
     }
     ctx.strokeStyle = '#8a4b3a';
@@ -1258,6 +1330,16 @@
 
   $('start').addEventListener('click', startGame);
   $('retry').addEventListener('click', startGame);
+  // 結果から、相手（難易度）をえらぶタイトル画面へもどる
+  $('to-title').addEventListener('click', () => {
+    clearTimeout(endingTimer);
+    mode = 'title';
+    resultScreen.hidden = true;
+    hud.hidden = true;
+    titleScreen.hidden = false;
+    titleScreen.scrollTop = 0;
+    $('start').focus({ preventScroll: true });
+  });
   $('surrender').addEventListener('click', () => {
     if (mode !== 'playing') return;
     handleEvents(G.surrender(game));

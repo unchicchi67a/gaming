@@ -475,6 +475,17 @@ html, body {
   box-shadow: 0 4px 0 var(--fusen-edge);
   transform: rotate(0.8deg);
 }
+/* タイトルからゲーム一覧へもどるリンク */
+.back-link {
+  align-self: center;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--on-stripe-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.back-link:focus-visible { outline: 3px solid var(--fusen); outline-offset: 2px; border-radius: 6px; }
 .rules-sub li::before { background: var(--ink); }
 .rules-sub strong { color: var(--ink); }
 
@@ -577,6 +588,7 @@ html, body {
   .title-column > .ranks { grid-column: 2; grid-row: 1; }
   .title-column > .btn-main { grid-column: 2; grid-row: 2; justify-self: center; align-self: start; }
   .title-column > .rules-more { grid-column: 1 / -1; }
+  .title-column > .back-link { grid-column: 1 / -1; justify-self: center; }
 }
 /* 横向きのスマホなど、背が低い画面 */
 @media (max-height: 520px) {
